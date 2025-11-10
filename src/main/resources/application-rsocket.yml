@@ -1,0 +1,6 @@
+spring:
+  rsocket:
+    server:
+      port: ${SERVER_RSOCKET_PORT}
+      mapping-path: ${SERVER_RSOCKET_MAPPING_PATH}
+      transport: ${SERVER_RSOCKET_TRANSPORT}

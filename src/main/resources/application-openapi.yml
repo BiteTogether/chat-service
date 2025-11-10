@@ -1,0 +1,13 @@
+openapi:
+  info:
+    title: ${API_TITLE}
+    description: ${API_DESCRIPTION}
+    version: ${API_VERSION}
+    contact:
+      name: ${API_CONTACT_NAME}
+      email: ${API_CONTACT_EMAIL}
+  servers:
+    - url: ${API_DEV_URL}
+      description: Development server
+    - url: ${API_PROD_URL}
+      description: Production server

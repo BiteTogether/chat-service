@@ -1,0 +1,17 @@
+server:
+  port: ${SERVER_PORT}
+
+spring:
+  application:
+    name: chat-service
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  profiles:
+    include:
+      - security
+      - openapi
+      - jwt
+      - database
+      - openfeign
+      - kafka
