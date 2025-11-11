@@ -6,9 +6,11 @@ import com.bitetogether.chat_service.mapper.MessageMapper;
 import com.bitetogether.chat_service.model.Message;
 import com.bitetogether.chat_service.repository.MessageRepository;
 import com.bitetogether.chat_service.service.inter.MessageService;
+import com.bitetogether.chat_service.service.inter.RoomService;
 import com.bitetogether.common.dto.ApiResponse;
 import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.util.ApiResponseUtil;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -26,6 +28,7 @@ public class MessageServiceImpl implements MessageService {
 
   MessageRepository messageRepository;
   MessageMapper messageMapper;
+  RoomService roomService;
 
   // Sink for real-time message streaming
   Sinks.Many<MessageResponse> messageSink = Sinks.many().multicast().onBackpressureBuffer();
@@ -179,9 +182,16 @@ public class MessageServiceImpl implements MessageService {
     return messageRepository
         .save(message)
         .flatMap(this::enrichMessageWithReplyContext)
-        .doOnNext(
+        .flatMap(
             response -> {
               log.info("Message saved with id: {}", response.getId());
+              // Update the room's last message timestamp
+              return roomService
+                  .updateLastMessage(response.getRoomId(), response.getId(), LocalDateTime.now())
+                  .thenReturn(response);
+            })
+        .doOnNext(
+            response -> {
               // Emit to sink for real-time streaming
               messageSink.tryEmitNext(response);
             })
@@ -283,7 +293,6 @@ public class MessageServiceImpl implements MessageService {
         .doOnError(e -> log.error("Error getting replies: {}", e.getMessage()));
   }
 
-
   private Mono<MessageResponse> enrichMessageWithReplyContext(Message message) {
     MessageResponse response = messageMapper.toMessageResponse(message);
 
@@ -294,11 +303,14 @@ public class MessageServiceImpl implements MessageService {
           .map(messageMapper::toMessageResponse)
           .doOnNext(response::setReplyTo)
           .thenReturn(response)
-          .onErrorResume(e -> {
-            log.warn("Could not fetch reply context for message {}: {}",
-                message.getId(), e.getMessage());
-            return Mono.just(response);
-          });
+          .onErrorResume(
+              e -> {
+                log.warn(
+                    "Could not fetch reply context for message {}: {}",
+                    message.getId(),
+                    e.getMessage());
+                return Mono.just(response);
+              });
     }
 
     return Mono.just(response);

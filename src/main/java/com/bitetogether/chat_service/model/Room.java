@@ -1,7 +1,6 @@
 package com.bitetogether.chat_service.model;
 
 import com.bitetogether.chat_service.enums.RoomType;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Data;

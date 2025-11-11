@@ -2,10 +2,12 @@ package com.bitetogether.chat_service.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Schema(description = "Response payload containing reaction details")
-public class ReactionResponse {
+public class ReactionResponse extends BaseResponse {
 
   @Schema(description = "Unique identifier of the reaction", example = "507f1f77bcf86cd799439011")
   private String id;

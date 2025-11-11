@@ -4,10 +4,12 @@ import com.bitetogether.chat_service.dto.UserDTO;
 import com.bitetogether.chat_service.enums.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Schema(description = "Response payload containing chat message details")
-public class MessageResponse {
+public class MessageResponse extends BaseResponse {
 
   @Schema(description = "Unique identifier of the message", example = "507f1f77bcf86cd799439011")
   private String id;
