@@ -148,6 +148,25 @@ public class MessageServiceImpl implements MessageService {
             });
   }
 
+  @Override
+  public Flux<ApiResponse<MessageResponse>> getMessageReplies(String messageId) {
+    log.info("REST: Getting replies for message: {}", messageId);
+    return getMessageRepliesDirect(messageId)
+        .map(
+            response ->
+                ApiResponseUtil.buildApiResponse(
+                    ApiResponseStatus.SUCCESS, "Replies retrieved successfully", response))
+        .onErrorResume(
+            e -> {
+              log.error("Failed to get replies: {}", e.getMessage());
+              return Flux.just(
+                  ApiResponseUtil.buildApiResponse(
+                      ApiResponseStatus.BAD_REQUEST,
+                      "Failed to fetch replies: " + e.getMessage(),
+                      null));
+            });
+  }
+
   // =========================================================
   // =============== DIRECT METHODS (for RSocket) ===========
   // =========================================================
@@ -159,7 +178,7 @@ public class MessageServiceImpl implements MessageService {
 
     return messageRepository
         .save(message)
-        .map(messageMapper::toMessageResponse)
+        .flatMap(this::enrichMessageWithReplyContext)
         .doOnNext(
             response -> {
               log.info("Message saved with id: {}", response.getId());
@@ -178,12 +197,11 @@ public class MessageServiceImpl implements MessageService {
         .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
         .flatMap(
             existing -> {
-              // Use mapper to update fields
               messageMapper.updateMessageFromMessageRequest(request, existing);
 
               return messageRepository.save(existing);
             })
-        .map(messageMapper::toMessageResponse)
+        .flatMap(this::enrichMessageWithReplyContext)
         .doOnNext(
             response -> {
               log.info("Message updated: {}", response.getId());
@@ -202,14 +220,12 @@ public class MessageServiceImpl implements MessageService {
         .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
         .flatMap(
             message -> {
-              // Create a deletion event response
               MessageResponse deletionEvent = messageMapper.toMessageResponse(message);
               deletionEvent.setDeleted(true);
 
               // Emit the deletion event to stream subscribers
               messageSink.tryEmitNext(deletionEvent);
 
-              // Delete the message from database
               return messageRepository.delete(message);
             })
         .doOnSuccess(v -> log.info("Message deleted and deletion event emitted: {}", messageId))
@@ -223,7 +239,7 @@ public class MessageServiceImpl implements MessageService {
     return messageRepository
         .findById(messageId)
         .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
-        .map(messageMapper::toMessageResponse)
+        .flatMap(this::enrichMessageWithReplyContext)
         .doOnError(e -> log.error("Error getting message: {}", e.getMessage()));
   }
 
@@ -233,7 +249,7 @@ public class MessageServiceImpl implements MessageService {
 
     return messageRepository
         .findByRoomIdOrderByCreatedAtAsc(roomId)
-        .map(messageMapper::toMessageResponse)
+        .flatMap(this::enrichMessageWithReplyContext)
         .doOnComplete(() -> log.info("Finished getting messages for room: {}", roomId))
         .doOnError(e -> log.error("Error getting messages for room: {}", e.getMessage()));
   }
@@ -254,5 +270,37 @@ public class MessageServiceImpl implements MessageService {
 
     // Combine both: existing + real-time
     return existingMessages.concatWith(newMessages);
+  }
+
+  @Override
+  public Flux<MessageResponse> getMessageRepliesDirect(String messageId) {
+    log.info("Direct: Getting replies for message: {}", messageId);
+
+    return messageRepository
+        .findByReplyToMessageId(messageId)
+        .flatMap(this::enrichMessageWithReplyContext)
+        .doOnComplete(() -> log.info("Finished getting replies for message: {}", messageId))
+        .doOnError(e -> log.error("Error getting replies: {}", e.getMessage()));
+  }
+
+
+  private Mono<MessageResponse> enrichMessageWithReplyContext(Message message) {
+    MessageResponse response = messageMapper.toMessageResponse(message);
+
+    // If this message is a reply, fetch the original message
+    if (message.getReplyToMessageId() != null && !message.getReplyToMessageId().isEmpty()) {
+      return messageRepository
+          .findById(message.getReplyToMessageId())
+          .map(messageMapper::toMessageResponse)
+          .doOnNext(response::setReplyTo)
+          .thenReturn(response)
+          .onErrorResume(e -> {
+            log.warn("Could not fetch reply context for message {}: {}",
+                message.getId(), e.getMessage());
+            return Mono.just(response);
+          });
+    }
+
+    return Mono.just(response);
   }
 }

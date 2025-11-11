@@ -32,4 +32,10 @@ public class MessageRequest {
       example = "TEXT",
       required = true)
   private MessageType type;
+
+  @Schema(
+      description = "ID of the message being replied to (optional, for threaded conversations)",
+      example = "507f1f77bcf86cd799439011",
+      nullable = true)
+  private String replyToMessageId;
 }

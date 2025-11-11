@@ -27,6 +27,11 @@ public class MessageResponse {
   private UserDTO sender;
 
   @Schema(
+      description = "The original message being replied to (if this is a reply)",
+      nullable = true)
+  private MessageResponse replyTo;
+
+  @Schema(
       description =
           "Flag indicating whether this message has been deleted. Used for real-time deletion events in streams.",
       example = "false",
