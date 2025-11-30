@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "rsocket.client")
 public class RsocketProperties {
-  private String port = "7000";
-  private String mappingPath = "/rsocket";
-  private String transport = "websocket";
+  private String port;
+  private String mappingPath;
+  private String transport;
 }

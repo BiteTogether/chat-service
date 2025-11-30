@@ -210,4 +210,35 @@ public class MessageController {
           String roomId) {
     return messageService.streamMessages(roomId);
   }
+
+  @GetMapping("/{messageId}/replies")
+  @Operation(
+      summary = "Get all replies to a message",
+      description =
+          "Retrieves all messages that are replies to a specific message. This is useful for implementing threaded conversations and showing reply chains.")
+  @ApiResponses(
+      value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Replies retrieved successfully",
+            content = @Content(schema = @Schema(implementation = MessageResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "Invalid message ID"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Message not found"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "Internal server error")
+      })
+  public Flux<ResponseEntity<ApiResponse<MessageResponse>>> getMessageReplies(
+      @Parameter(
+              description = "ID of the message to get replies for",
+              required = true,
+              example = "507f1f77bcf86cd799439011")
+          @PathVariable
+          String messageId) {
+    return messageService.getMessageReplies(messageId).map(ResponseEntity::ok);
+  }
 }

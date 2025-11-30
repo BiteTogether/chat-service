@@ -20,6 +20,8 @@ public interface MessageService {
 
   Flux<ApiResponse<MessageResponse>> streamMessages(String roomId);
 
+  Flux<ApiResponse<MessageResponse>> getMessageReplies(String messageId);
+
   // Direct methods for RSocket (return raw data without wrapper)
   Mono<MessageResponse> sendMessageDirect(MessageRequest request);
 
@@ -32,4 +34,6 @@ public interface MessageService {
   Flux<MessageResponse> getMessagesByRoomDirect(String roomId);
 
   Flux<MessageResponse> streamMessagesDirect(String roomId);
+
+  Flux<MessageResponse> getMessageRepliesDirect(String messageId);
 }

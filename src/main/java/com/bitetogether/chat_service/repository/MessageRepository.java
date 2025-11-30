@@ -6,4 +6,6 @@ import reactor.core.publisher.Flux;
 
 public interface MessageRepository extends ReactiveMongoRepository<Message, String> {
   Flux<Message> findByRoomIdOrderByCreatedAtAsc(String roomId);
+
+  Flux<Message> findByReplyToMessageId(String replyToMessageId);
 }

@@ -1,5 +1,7 @@
 package com.bitetogether.chat_service.model;
 
+import com.bitetogether.chat_service.enums.RoomType;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
@@ -19,4 +21,16 @@ public class Room extends BaseModel {
 
   @Field("user_ids")
   private List<String> userIds;
+
+  @Field("room_type")
+  private RoomType roomType; // DIRECT, GROUP
+
+  @Field("admin_ids")
+  private List<String> adminIds;
+
+  @Field("last_message_id")
+  private String lastMessageId;
+
+  @Field("last_message_at")
+  private LocalDateTime lastMessageAt;
 }
