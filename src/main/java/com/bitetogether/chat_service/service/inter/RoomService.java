@@ -14,41 +14,40 @@ public interface RoomService {
 
   Mono<ApiResponse<RoomResponse>> getRoomById(String roomId);
 
-  Flux<ApiResponse<RoomResponse>> getUserRooms(String userId);
+  Flux<ApiResponse<RoomResponse>> getUserRooms(Long userId);
 
   Mono<ApiResponse<RoomResponse>> updateRoom(String roomId, RoomRequest request);
 
   Mono<ApiResponse<Void>> deleteRoom(String roomId);
 
   Mono<ApiResponse<RoomResponse>> addMembersToRoom(
-      String roomId, List<String> userIds, String requesterId);
+      String roomId, List<Long> userIds, Long requesterId);
 
   Mono<ApiResponse<RoomResponse>> removeMemberFromRoom(
-      String roomId, String userId, String requesterId);
+      String roomId, Long userId, Long requesterId);
 
-  Mono<ApiResponse<RoomResponse>> promoteToAdmin(String roomId, String userId, String requesterId);
+  Mono<ApiResponse<RoomResponse>> promoteToAdmin(String roomId, Long userId, Long requesterId);
 
-  Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(String userId1, String userId2);
+  Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2);
 
   // Direct methods for internal use (return raw data without wrapper)
   Mono<RoomResponse> createRoomDirect(RoomRequest request);
 
   Mono<RoomResponse> getRoomByIdDirect(String roomId);
 
-  Flux<RoomResponse> getUserRoomsDirect(String userId);
+  Flux<RoomResponse> getUserRoomsDirect(Long userId);
 
   Mono<RoomResponse> updateRoomDirect(String roomId, RoomRequest request);
 
   Mono<Void> deleteRoomDirect(String roomId);
 
-  Mono<RoomResponse> addMembersToRoomDirect(
-      String roomId, List<String> userIds, String requesterId);
+  Mono<RoomResponse> addMembersToRoomDirect(String roomId, List<Long> userIds, Long requesterId);
 
-  Mono<RoomResponse> removeMemberFromRoomDirect(String roomId, String userId, String requesterId);
+  Mono<RoomResponse> removeMemberFromRoomDirect(String roomId, Long userId, Long requesterId);
 
-  Mono<RoomResponse> promoteToAdminDirect(String roomId, String userId, String requesterId);
+  Mono<RoomResponse> promoteToAdminDirect(String roomId, Long userId, Long requesterId);
 
-  Mono<RoomResponse> getOrCreateDirectRoomDirect(String userId1, String userId2);
+  Mono<RoomResponse> getOrCreateDirectRoomDirect(Long userId1, Long userId2);
 
   Mono<Void> updateLastMessage(String roomId, String messageId, LocalDateTime timestamp);
 }

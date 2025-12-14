@@ -16,7 +16,7 @@ public class Message extends BaseModel {
   private String roomId;
 
   @Field("sender_id")
-  private String senderId;
+  private Long senderId;
 
   @Field("content")
   private String content;

@@ -20,13 +20,13 @@ public class Room extends BaseModel {
   private String avatar;
 
   @Field("user_ids")
-  private List<String> userIds;
+  private List<Long> userIds;
 
   @Field("room_type")
   private RoomType roomType; // DIRECT, GROUP
 
   @Field("admin_ids")
-  private List<String> adminIds;
+  private List<Long> adminIds;
 
   @Field("last_message_id")
   private String lastMessageId;

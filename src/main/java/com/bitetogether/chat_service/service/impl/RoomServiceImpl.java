@@ -72,7 +72,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Flux<ApiResponse<RoomResponse>> getUserRooms(String userId) {
+  public Flux<ApiResponse<RoomResponse>> getUserRooms(Long userId) {
     log.info("REST: Getting rooms for user: {}", userId);
     return getUserRoomsDirect(userId)
         .map(
@@ -131,7 +131,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<ApiResponse<RoomResponse>> addMembersToRoom(
-      String roomId, List<String> userIds, String requesterId) {
+      String roomId, List<Long> userIds, Long requesterId) {
     log.info("REST: Adding members to room: {}", roomId);
     return addMembersToRoomDirect(roomId, userIds, requesterId)
         .map(
@@ -151,7 +151,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<ApiResponse<RoomResponse>> removeMemberFromRoom(
-      String roomId, String userId, String requesterId) {
+      String roomId, Long userId, Long requesterId) {
     log.info("REST: Removing member {} from room: {}", userId, roomId);
     return removeMemberFromRoomDirect(roomId, userId, requesterId)
         .map(
@@ -171,7 +171,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<ApiResponse<RoomResponse>> promoteToAdmin(
-      String roomId, String userId, String requesterId) {
+      String roomId, Long userId, Long requesterId) {
     log.info("REST: Promoting user {} to admin in room: {}", userId, roomId);
     return promoteToAdminDirect(roomId, userId, requesterId)
         .map(
@@ -190,7 +190,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(String userId1, String userId2) {
+  public Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2) {
     log.info("REST: Getting or creating direct room between {} and {}", userId1, userId2);
     return getOrCreateDirectRoomDirect(userId1, userId2)
         .map(
@@ -257,7 +257,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Flux<RoomResponse> getUserRoomsDirect(String userId) {
+  public Flux<RoomResponse> getUserRoomsDirect(Long userId) {
     log.info("Direct: Getting rooms for user: {}", userId);
 
     return roomRepository
@@ -298,7 +298,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<RoomResponse> addMembersToRoomDirect(
-      String roomId, List<String> userIds, String requesterId) {
+      String roomId, List<Long> userIds, Long requesterId) {
     log.info("Direct: Adding members to room: {}", roomId);
 
     return roomRepository
@@ -313,11 +313,11 @@ public class RoomServiceImpl implements RoomService {
                 }
               }
 
-              List<String> currentUserIds =
+              List<Long> currentUserIds =
                   room.getUserIds() != null
                       ? new ArrayList<>(room.getUserIds())
                       : new ArrayList<>();
-              for (String userId : userIds) {
+              for (Long userId : userIds) {
                 if (!currentUserIds.contains(userId)) {
                   currentUserIds.add(userId);
                 }
@@ -333,7 +333,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<RoomResponse> removeMemberFromRoomDirect(
-      String roomId, String userId, String requesterId) {
+      String roomId, Long userId, Long requesterId) {
     log.info("Direct: Removing member {} from room: {}", userId, roomId);
 
     return roomRepository
@@ -371,7 +371,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<RoomResponse> promoteToAdminDirect(String roomId, String userId, String requesterId) {
+  public Mono<RoomResponse> promoteToAdminDirect(String roomId, Long userId, Long requesterId) {
     log.info("Direct: Promoting user {} to admin in room: {}", userId, roomId);
 
     return roomRepository
@@ -397,7 +397,7 @@ public class RoomServiceImpl implements RoomService {
               }
 
               // Add to admins if not already
-              List<String> adminIds =
+              List<Long> adminIds =
                   room.getAdminIds() != null
                       ? new ArrayList<>(room.getAdminIds())
                       : new ArrayList<>();
@@ -414,10 +414,10 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<RoomResponse> getOrCreateDirectRoomDirect(String userId1, String userId2) {
+  public Mono<RoomResponse> getOrCreateDirectRoomDirect(Long userId1, Long userId2) {
     log.info("Direct: Getting or creating direct room between {} and {}", userId1, userId2);
 
-    List<String> userIds = new ArrayList<>();
+    List<Long> userIds = new ArrayList<>();
     userIds.add(userId1);
     userIds.add(userId2);
     Collections.sort(userIds); // Sort to ensure consistent ordering

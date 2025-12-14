@@ -33,7 +33,7 @@ public class RoomResponse extends BaseResponse {
   private RoomType roomType;
 
   @Schema(description = "List of admin user IDs (only applicable for GROUP rooms)")
-  private List<String> adminIds;
+  private List<Long> adminIds;
 
   @Schema(description = "ID of the last message sent in this room")
   private String lastMessageId;

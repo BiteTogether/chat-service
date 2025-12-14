@@ -17,8 +17,8 @@ public class ReactionResponse extends BaseResponse {
       example = "507f1f77bcf86cd799439012")
   private String messageId;
 
-  @Schema(description = "Unique identifier of the user who added the reaction", example = "user123")
-  private String userId;
+  @Schema(description = "Unique identifier of the user who added the reaction", example = "123")
+  private Long userId;
 
   @Schema(description = "The emoji character or code representing the reaction", example = "👍")
   private String emoji;

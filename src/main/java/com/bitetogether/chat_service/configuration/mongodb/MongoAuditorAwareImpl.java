@@ -1,12 +1,11 @@
 package com.bitetogether.chat_service.configuration.mongodb;
 
+import static com.bitetogether.common.util.UserContextUtils.getCurrentUserId;
+
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Component;
-
-import java.util.Optional;
-
-import static com.bitetogether.common.util.UserContextUtils.getCurrentUserId;
 
 @Component("mongoAuditorProvider")
 @Slf4j

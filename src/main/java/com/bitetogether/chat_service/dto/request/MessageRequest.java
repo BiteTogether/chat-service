@@ -16,9 +16,9 @@ public class MessageRequest {
 
   @Schema(
       description = "Unique identifier of the user sending the message",
-      example = "user456",
+      example = "456",
       required = true)
-  private String senderId;
+  private Long senderId;
 
   @Schema(
       description = "The actual content/text of the message",

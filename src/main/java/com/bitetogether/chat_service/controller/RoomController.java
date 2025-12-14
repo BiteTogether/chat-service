@@ -107,8 +107,8 @@ public class RoomController {
             description = "Internal server error")
       })
   public Flux<ResponseEntity<ApiResponse<RoomResponse>>> getUserRooms(
-      @Parameter(description = "ID of the user", required = true, example = "user123") @PathVariable
-          String userId) {
+      @Parameter(description = "ID of the user", required = true, example = "123") @PathVariable
+          Long userId) {
     return roomService.getUserRooms(userId).map(ResponseEntity::ok);
   }
 
@@ -213,15 +213,15 @@ public class RoomController {
       @Parameter(
               description = "List of user IDs to add to the room",
               required = true,
-              example = "[\"user123\", \"user456\"]")
+              example = "[123, 456]")
           @RequestBody
-          List<String> userIds,
+          List<Long> userIds,
       @Parameter(
               description = "ID of the user making the request (for permission checking)",
               required = true,
-              example = "user123")
+              example = "123")
           @RequestParam
-          String requesterId) {
+          Long requesterId) {
     return roomService.addMembersToRoom(roomId, userIds, requesterId).map(ResponseEntity::ok);
   }
 
@@ -257,15 +257,15 @@ public class RoomController {
       @Parameter(
               description = "ID of the user to remove from the room",
               required = true,
-              example = "user456")
+              example = "456")
           @PathVariable
-          String userId,
+          Long userId,
       @Parameter(
               description = "ID of the user making the request (for permission checking)",
               required = true,
-              example = "user123")
+              example = "123")
           @RequestParam
-          String requesterId) {
+          Long requesterId) {
     return roomService.removeMemberFromRoom(roomId, userId, requesterId).map(ResponseEntity::ok);
   }
 
@@ -301,15 +301,15 @@ public class RoomController {
       @Parameter(
               description = "ID of the user to promote to admin",
               required = true,
-              example = "user456")
+              example = "456")
           @PathVariable
-          String userId,
+          Long userId,
       @Parameter(
               description = "ID of the user making the request (must be an admin)",
               required = true,
-              example = "user123")
+              example = "123")
           @RequestParam
-          String requesterId) {
+          Long requesterId) {
     return roomService.promoteToAdmin(roomId, userId, requesterId).map(ResponseEntity::ok);
   }
 
@@ -333,12 +333,12 @@ public class RoomController {
             description = "Internal server error")
       })
   public Mono<ResponseEntity<ApiResponse<RoomResponse>>> getOrCreateDirectRoom(
-      @Parameter(description = "ID of the first user", required = true, example = "user123")
+      @Parameter(description = "ID of the first user", required = true, example = "123")
           @RequestParam
-          String userId1,
-      @Parameter(description = "ID of the second user", required = true, example = "user456")
+          Long userId1,
+      @Parameter(description = "ID of the second user", required = true, example = "456")
           @RequestParam
-          String userId2) {
+          Long userId2) {
     return roomService.getOrCreateDirectRoom(userId1, userId2).map(ResponseEntity::ok);
   }
 }
