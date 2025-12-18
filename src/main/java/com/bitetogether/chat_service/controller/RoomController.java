@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -89,9 +88,9 @@ public class RoomController {
 
   @GetMapping("/user/{userId}")
   @Operation(
-      summary = "Get all rooms for a user",
+      summary = "Get all rooms for a user with pagination",
       description =
-          "Retrieves all chat rooms where the specified user is a member. "
+          "Retrieves chat rooms where the specified user is a member with pagination support. "
               + "Results are ordered by the timestamp of the last message (most recent first).")
   @ApiResponses(
       value = {
@@ -101,15 +100,22 @@ public class RoomController {
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "400",
-            description = "Invalid user ID"),
+            description = "Invalid user ID or pagination parameters"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "500",
             description = "Internal server error")
       })
-  public Flux<ResponseEntity<ApiResponse<RoomResponse>>> getUserRooms(
-      @Parameter(description = "ID of the user", required = true, example = "123") @PathVariable
-          Long userId) {
-    return roomService.getUserRooms(userId).map(ResponseEntity::ok);
+  public Mono<ResponseEntity<com.bitetogether.common.dto.ApiResponsePagination<RoomResponse>>>
+      getUserRoomsPaginated(
+          @Parameter(description = "ID of the user", required = true, example = "123") @PathVariable
+              Long userId,
+          @Parameter(description = "Page number (0-indexed)", example = "0")
+              @RequestParam(defaultValue = "0")
+              int page,
+          @Parameter(description = "Number of items per page", example = "20")
+              @RequestParam(defaultValue = "20")
+              int size) {
+    return roomService.getUserRooms(userId, page, size).map(ResponseEntity::ok);
   }
 
   @PutMapping("/{roomId}")

@@ -2,12 +2,14 @@ package com.bitetogether.chat_service.repository;
 
 import com.bitetogether.chat_service.enums.RoomType;
 import com.bitetogether.chat_service.model.Room;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface RoomRepository extends ReactiveMongoRepository<Room, String> {
   // Find all rooms where a user is a member
-  Flux<Room> findByUserIdsContaining(Long userId);
+  Flux<Room> findByUserIdsContaining(Long userId, Pageable pageable);
 
   // Find all rooms where a user is a member, ordered by last message time
   Flux<Room> findByUserIdsContainingOrderByLastMessageAtDesc(Long userId);
@@ -17,4 +19,6 @@ public interface RoomRepository extends ReactiveMongoRepository<Room, String> {
 
   // Find rooms where a user is an admin
   Flux<Room> findByAdminIdsContaining(Long userId);
+
+  Mono<Long> countByUserIdsContaining(Long userId);
 }

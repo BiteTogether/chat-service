@@ -3,9 +3,9 @@ package com.bitetogether.chat_service.service.inter;
 import com.bitetogether.chat_service.dto.request.RoomRequest;
 import com.bitetogether.chat_service.dto.response.RoomResponse;
 import com.bitetogether.common.dto.ApiResponse;
+import com.bitetogether.common.dto.ApiResponsePagination;
 import java.time.LocalDateTime;
 import java.util.List;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface RoomService {
@@ -14,7 +14,7 @@ public interface RoomService {
 
   Mono<ApiResponse<RoomResponse>> getRoomById(String roomId);
 
-  Flux<ApiResponse<RoomResponse>> getUserRooms(Long userId);
+  Mono<ApiResponsePagination<RoomResponse>> getUserRooms(Long userId, int page, int size);
 
   Mono<ApiResponse<RoomResponse>> updateRoom(String roomId, RoomRequest request);
 
@@ -34,8 +34,6 @@ public interface RoomService {
   Mono<RoomResponse> createRoomDirect(RoomRequest request);
 
   Mono<RoomResponse> getRoomByIdDirect(String roomId);
-
-  Flux<RoomResponse> getUserRoomsDirect(Long userId);
 
   Mono<RoomResponse> updateRoomDirect(String roomId, RoomRequest request);
 

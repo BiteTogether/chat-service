@@ -1,6 +1,5 @@
 package com.bitetogether.chat_service.dto.response;
 
-import com.bitetogether.chat_service.dto.UserDTO;
 import com.bitetogether.chat_service.enums.RoomType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -24,8 +23,8 @@ public class RoomResponse extends BaseResponse {
       example = "https://example.com/avatars/room-avatar.jpg")
   private String avatar;
 
-  @Schema(description = "List of users who are members of this chat room")
-  private List<UserDTO> users;
+  @Schema(description = "List of user IDs who are members of this chat room")
+  private List<Long> userIds;
 
   @Schema(
       description = "Type of chat room (DIRECT for 1-on-1, GROUP for multiple users)",

@@ -8,6 +8,7 @@ import com.bitetogether.chat_service.model.Room;
 import com.bitetogether.chat_service.repository.RoomRepository;
 import com.bitetogether.chat_service.service.inter.RoomService;
 import com.bitetogether.common.dto.ApiResponse;
+import com.bitetogether.common.dto.ApiResponsePagination;
 import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.util.ApiResponseUtil;
 import java.time.LocalDateTime;
@@ -18,8 +19,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -68,25 +70,6 @@ public class RoomServiceImpl implements RoomService {
               return Mono.just(
                   ApiResponseUtil.buildApiResponse(
                       ApiResponseStatus.BAD_REQUEST, "Room not found: " + e.getMessage(), null));
-            });
-  }
-
-  @Override
-  public Flux<ApiResponse<RoomResponse>> getUserRooms(Long userId) {
-    log.info("REST: Getting rooms for user: {}", userId);
-    return getUserRoomsDirect(userId)
-        .map(
-            response ->
-                ApiResponseUtil.buildApiResponse(
-                    ApiResponseStatus.SUCCESS, "Rooms retrieved successfully", response))
-        .onErrorResume(
-            e -> {
-              log.error("Failed to get user rooms: {}", e.getMessage());
-              return Flux.just(
-                  ApiResponseUtil.buildApiResponse(
-                      ApiResponseStatus.BAD_REQUEST,
-                      "Failed to fetch rooms: " + e.getMessage(),
-                      null));
             });
   }
 
@@ -210,6 +193,52 @@ public class RoomServiceImpl implements RoomService {
             });
   }
 
+  @Override
+  public Mono<ApiResponsePagination<RoomResponse>> getUserRooms(Long userId, int page, int size) {
+    log.info("REST: Getting paginated rooms for user: {} (page: {}, size: {})", userId, page, size);
+
+    Pageable pageable =
+        org.springframework.data.domain.PageRequest.of(
+            page,
+            size,
+            org.springframework.data.domain.Sort.by(Sort.Direction.DESC, "lastMessageAt"));
+
+    Mono<Long> totalMono = roomRepository.countByUserIdsContaining(userId);
+    Mono<java.util.List<RoomResponse>> contentMono =
+        roomRepository
+            .findByUserIdsContaining(userId, pageable)
+            .map(roomMapper::toRoomResponse)
+            .collectList();
+
+    return Mono.zip(totalMono, contentMono)
+        .map(
+            tuple -> {
+              long total = tuple.getT1();
+              java.util.List<RoomResponse> content = tuple.getT2();
+              int totalPages = (int) Math.ceil((double) total / size);
+
+              return ApiResponseUtil.buildApiResponse(
+                  ApiResponseStatus.SUCCESS,
+                  "Rooms retrieved successfully",
+                  content,
+                  page,
+                  totalPages,
+                  total);
+            })
+        .onErrorResume(
+            e -> {
+              log.error("Failed to get paginated rooms: {}", e.getMessage());
+              return Mono.just(
+                  ApiResponseUtil.buildApiResponse(
+                      ApiResponseStatus.BAD_REQUEST,
+                      "Failed to fetch rooms: " + e.getMessage(),
+                      java.util.Collections.emptyList(),
+                      page,
+                      0,
+                      0L));
+            });
+  }
+
   // =========================================================
   // =============== DIRECT METHODS ==========================
   // =========================================================
@@ -254,17 +283,6 @@ public class RoomServiceImpl implements RoomService {
         .switchIfEmpty(Mono.error(new RuntimeException("Room not found with id: " + roomId)))
         .map(roomMapper::toRoomResponse)
         .doOnError(e -> log.error("Error getting room: {}", e.getMessage()));
-  }
-
-  @Override
-  public Flux<RoomResponse> getUserRoomsDirect(Long userId) {
-    log.info("Direct: Getting rooms for user: {}", userId);
-
-    return roomRepository
-        .findByUserIdsContainingOrderByLastMessageAtDesc(userId)
-        .map(roomMapper::toRoomResponse)
-        .doOnComplete(() -> log.info("Finished getting rooms for user: {}", userId))
-        .doOnError(e -> log.error("Error getting user rooms: {}", e.getMessage()));
   }
 
   @Override

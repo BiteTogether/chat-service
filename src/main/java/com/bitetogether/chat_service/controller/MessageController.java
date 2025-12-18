@@ -156,9 +156,9 @@ public class MessageController {
 
   @GetMapping("/room/{roomId}")
   @Operation(
-      summary = "Get all messages in a room",
+      summary = "Get messages in a room with pagination",
       description =
-          "Retrieves all messages in a specific chat room, ordered by creation time (ascending)")
+          "Retrieves messages in a specific chat room with pagination support. Returns page metadata including total count and total pages.")
   @ApiResponses(
       value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -167,16 +167,23 @@ public class MessageController {
             content = @Content(schema = @Schema(implementation = MessageResponse.class))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "400",
-            description = "Invalid room ID"),
+            description = "Invalid room ID or pagination parameters"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "500",
             description = "Internal server error")
       })
-  public Flux<ResponseEntity<ApiResponse<MessageResponse>>> getMessagesByRoom(
-      @Parameter(description = "ID of the chat room", required = true, example = "room123")
-          @PathVariable
-          String roomId) {
-    return messageService.getMessagesByRoom(roomId).map(ResponseEntity::ok);
+  public Mono<ResponseEntity<com.bitetogether.common.dto.ApiResponsePagination<MessageResponse>>>
+      getMessagesByRoomPaginated(
+          @Parameter(description = "ID of the chat room", required = true, example = "room123")
+              @PathVariable
+              String roomId,
+          @Parameter(description = "Page number (0-indexed)", example = "0")
+              @RequestParam(defaultValue = "0")
+              int page,
+          @Parameter(description = "Number of items per page", example = "20")
+              @RequestParam(defaultValue = "20")
+              int size) {
+    return messageService.getMessagesByRoomPaginated(roomId, page, size).map(ResponseEntity::ok);
   }
 
   @GetMapping(value = "/room/{roomId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

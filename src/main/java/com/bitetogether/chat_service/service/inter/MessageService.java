@@ -3,6 +3,7 @@ package com.bitetogether.chat_service.service.inter;
 import com.bitetogether.chat_service.dto.request.MessageRequest;
 import com.bitetogether.chat_service.dto.response.MessageResponse;
 import com.bitetogether.common.dto.ApiResponse;
+import com.bitetogether.common.dto.ApiResponsePagination;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -16,7 +17,8 @@ public interface MessageService {
 
   Mono<ApiResponse<MessageResponse>> getMessageById(String messageId);
 
-  Flux<ApiResponse<MessageResponse>> getMessagesByRoom(String roomId);
+  Mono<ApiResponsePagination<MessageResponse>> getMessagesByRoomPaginated(
+      String roomId, int page, int size);
 
   Flux<ApiResponse<MessageResponse>> streamMessages(String roomId);
 

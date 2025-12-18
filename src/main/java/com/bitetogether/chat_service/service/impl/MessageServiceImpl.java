@@ -8,6 +8,7 @@ import com.bitetogether.chat_service.repository.MessageRepository;
 import com.bitetogether.chat_service.service.inter.MessageService;
 import com.bitetogether.chat_service.service.inter.RoomService;
 import com.bitetogether.common.dto.ApiResponse;
+import com.bitetogether.common.dto.ApiResponsePagination;
 import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.util.ApiResponseUtil;
 import java.time.LocalDateTime;
@@ -15,6 +16,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -114,21 +118,47 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Flux<ApiResponse<MessageResponse>> getMessagesByRoom(String roomId) {
-    log.info("REST: Getting messages for room: {}", roomId);
-    return getMessagesByRoomDirect(roomId)
+  public Mono<ApiResponsePagination<MessageResponse>> getMessagesByRoomPaginated(
+      String roomId, int page, int size) {
+    log.info(
+        "REST: Getting paginated messages for room: {} (page: {}, size: {})", roomId, page, size);
+
+    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
+
+    // Get total count and content in parallel
+    Mono<Long> totalMono = messageRepository.countByRoomId(roomId);
+    Mono<java.util.List<MessageResponse>> contentMono =
+        messageRepository
+            .findByRoomId(roomId, pageable)
+            .flatMap(this::enrichMessageWithReplyContext)
+            .collectList();
+
+    return Mono.zip(totalMono, contentMono)
         .map(
-            response ->
-                ApiResponseUtil.buildApiResponse(
-                    ApiResponseStatus.SUCCESS, "Messages retrieved successfully", response))
+            tuple -> {
+              long total = tuple.getT1();
+              java.util.List<MessageResponse> content = tuple.getT2();
+              int totalPages = (int) Math.ceil((double) total / size);
+
+              return ApiResponseUtil.buildApiResponse(
+                  ApiResponseStatus.SUCCESS,
+                  "Messages retrieved successfully",
+                  content,
+                  page,
+                  totalPages,
+                  total);
+            })
         .onErrorResume(
             e -> {
-              log.error("Failed to get messages: {}", e.getMessage());
-              return Flux.just(
+              log.error("Failed to get paginated messages: {}", e.getMessage());
+              return Mono.just(
                   ApiResponseUtil.buildApiResponse(
                       ApiResponseStatus.BAD_REQUEST,
                       "Failed to fetch messages: " + e.getMessage(),
-                      null));
+                      java.util.Collections.emptyList(),
+                      page,
+                      0,
+                      0L));
             });
   }
 
