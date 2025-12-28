@@ -53,8 +53,9 @@ public class MessageController {
               required = true,
               content = @Content(schema = @Schema(implementation = MessageRequest.class)))
           @RequestBody
-          MessageRequest request) {
-    return messageService.sendMessage(request).map(ResponseEntity::ok);
+          MessageRequest request,
+      @RequestHeader(value = "Authorization", required = false) String authorization) {
+    return messageService.sendMessage(request, authorization).map(ResponseEntity::ok);
   }
 
   @PutMapping("/{messageId}")
@@ -90,8 +91,9 @@ public class MessageController {
               required = true,
               content = @Content(schema = @Schema(implementation = MessageRequest.class)))
           @RequestBody
-          MessageRequest request) {
-    return messageService.updateMessage(messageId, request).map(ResponseEntity::ok);
+          MessageRequest request,
+      @RequestHeader(value = "Authorization", required = false) String authorization) {
+    return messageService.updateMessage(messageId, request, authorization).map(ResponseEntity::ok);
   }
 
   @DeleteMapping("/{messageId}")
@@ -150,8 +152,9 @@ public class MessageController {
               required = true,
               example = "507f1f77bcf86cd799439011")
           @PathVariable
-          String messageId) {
-    return messageService.getMessageById(messageId).map(ResponseEntity::ok);
+          String messageId,
+      @RequestHeader(value = "Authorization", required = false) String authorization) {
+    return messageService.getMessageById(messageId, authorization).map(ResponseEntity::ok);
   }
 
   @GetMapping("/room/{roomId}")
@@ -182,8 +185,9 @@ public class MessageController {
               int page,
           @Parameter(description = "Number of items per page", example = "20")
               @RequestParam(defaultValue = "20")
-              int size) {
-    return messageService.getMessagesByRoomPaginated(roomId, page, size).map(ResponseEntity::ok);
+              int size,
+          @RequestHeader(value = "Authorization", required = false) String authorization) {
+    return messageService.getMessagesByRoomPaginated(roomId, page, size, authorization).map(ResponseEntity::ok);
   }
 
   @GetMapping(value = "/room/{roomId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -214,8 +218,9 @@ public class MessageController {
               required = true,
               example = "room123")
           @PathVariable
-          String roomId) {
-    return messageService.streamMessages(roomId);
+          String roomId,
+      @RequestHeader(value = "Authorization", required = false) String authorization) {
+    return messageService.streamMessages(roomId, authorization);
   }
 
   @GetMapping("/{messageId}/replies")
@@ -245,7 +250,8 @@ public class MessageController {
               required = true,
               example = "507f1f77bcf86cd799439011")
           @PathVariable
-          String messageId) {
-    return messageService.getMessageReplies(messageId).map(ResponseEntity::ok);
+          String messageId,
+      @RequestHeader(value = "Authorization", required = false) String authorization) {
+    return messageService.getMessageReplies(messageId, authorization).map(ResponseEntity::ok);
   }
 }

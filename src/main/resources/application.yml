@@ -12,6 +12,6 @@ spring:
       - security
       - openapi
       - database
-      - openfeign
+      - webclient
       - kafka
       - rsocket
