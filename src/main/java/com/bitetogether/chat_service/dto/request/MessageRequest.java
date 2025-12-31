@@ -15,12 +15,6 @@ public class MessageRequest {
   private String roomId;
 
   @Schema(
-      description = "Unique identifier of the user sending the message",
-      example = "456",
-      required = true)
-  private Long senderId;
-
-  @Schema(
       description = "The actual content/text of the message",
       example = "Hello, how are you?",
       required = true,

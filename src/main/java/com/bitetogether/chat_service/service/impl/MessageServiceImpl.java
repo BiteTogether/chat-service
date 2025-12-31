@@ -17,6 +17,7 @@ import com.bitetogether.common.util.ApiResponseUtil;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.bitetogether.common.util.UserContextUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -216,6 +217,9 @@ public class MessageServiceImpl implements MessageService {
     log.info("Direct: Sending message to room: {}", request.getRoomId());
     Message message = messageMapper.toMessage(request);
 
+    Long currentUserId = UserContextUtils.getCurrentUserId();
+    message.setSenderId(currentUserId);
+
     return messageRepository
         .save(message)
         .flatMap(savedMessage -> enrichMessageWithSenderAndReplyContext(savedMessage, authorization))
@@ -239,13 +243,22 @@ public class MessageServiceImpl implements MessageService {
   public Mono<MessageResponse> updateMessageDirect(String messageId, MessageRequest request, String authorization) {
     log.info("Direct: Updating message: {}", messageId);
 
+    Long currentUserId = UserContextUtils.getCurrentUserId();
+
     return messageRepository
         .findById(messageId)
         .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
         .flatMap(
             existing -> {
+                if (!existing.getSenderId().equals(currentUserId)) {
+                    log.warn(
+                        "User {} attempted to update message {} owned by user {}",
+                        currentUserId,
+                        messageId,
+                        existing.getSenderId());
+                    return Mono.error(new RuntimeException("You are not authorized to update this message"));
+                }
               messageMapper.updateMessageFromMessageRequest(request, existing);
-
               return messageRepository.save(existing);
             })
         .flatMap(savedMessage -> enrichMessageWithSenderAndReplyContext(savedMessage, authorization))
@@ -262,11 +275,21 @@ public class MessageServiceImpl implements MessageService {
   public Mono<Void> deleteMessageDirect(String messageId) {
     log.info("Direct: Deleting message: {}", messageId);
 
+    Long currentUserId = UserContextUtils.getCurrentUserId();
+
     return messageRepository
         .findById(messageId)
         .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
         .flatMap(
             message -> {
+                if (!message.getSenderId().equals(currentUserId)) {
+                    log.warn(
+                        "User {} attempted to delete message {} owned by user {}",
+                        currentUserId,
+                        messageId,
+                        message.getSenderId());
+                    return Mono.error(new RuntimeException("You are not authorized to delete this message"));
+                }
               MessageResponse deletionEvent = messageMapper.toMessageResponse(message);
               deletionEvent.setDeleted(true);
 
