@@ -1,13 +1,18 @@
 package com.bitetogether.chat_service.controller;
 
+import static com.bitetogether.common.util.Constants.DEFAULT_PAGE_NUMBER;
+import static com.bitetogether.common.util.Constants.DEFAULT_PAGE_SIZE;
+
 import com.bitetogether.chat_service.dto.request.RoomRequest;
 import com.bitetogether.chat_service.dto.response.RoomResponse;
-import com.bitetogether.chat_service.service.inter.RoomService;
-import com.bitetogether.common.dto.ApiResponse;
+import com.bitetogether.chat_service.service.RoomService;
+import com.bitetogether.common.dto.ApiResponseDTO;
+import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
@@ -37,18 +42,16 @@ public class RoomController {
               + "For GROUP rooms, the name is required and the creator becomes an admin by default.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "Room created successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "400",
             description = "Invalid room request - validation errors"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<RoomResponse>>> createRoom(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> createRoom(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Room details to create",
               required = true,
@@ -65,18 +68,14 @@ public class RoomController {
           "Retrieves detailed information about a specific chat room by its unique identifier")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "Room retrieved successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Room not found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "Room not found"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<RoomResponse>>> getRoomById(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> getRoomById(
       @Parameter(
               description = "ID of the room to retrieve",
               required = true,
@@ -86,7 +85,7 @@ public class RoomController {
     return roomService.getRoomById(roomId).map(ResponseEntity::ok);
   }
 
-  @GetMapping("/user/{userId}")
+  @GetMapping
   @Operation(
       summary = "Get all rooms for a user with pagination",
       description =
@@ -94,28 +93,23 @@ public class RoomController {
               + "Results are ordered by the timestamp of the last message (most recent first).")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "Rooms retrieved successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "400",
             description = "Invalid user ID or pagination parameters"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<com.bitetogether.common.dto.ApiResponsePagination<RoomResponse>>>
-      getUserRoomsPaginated(
-          @Parameter(description = "ID of the user", required = true, example = "123") @PathVariable
-              Long userId,
-          @Parameter(description = "Page number (0-indexed)", example = "0")
-              @RequestParam(defaultValue = "0")
-              int page,
-          @Parameter(description = "Number of items per page", example = "20")
-              @RequestParam(defaultValue = "20")
-              int size) {
-    return roomService.getUserRooms(userId, page, size).map(ResponseEntity::ok);
+  public Mono<ResponseEntity<ApiResponsePaginationDTO<RoomResponse>>> getUserRoomsPaginated(
+      @Parameter(description = "Page number (0-indexed)", example = "0")
+          @RequestParam(defaultValue = DEFAULT_PAGE_NUMBER)
+          int page,
+      @Parameter(description = "Number of items per page", example = "20")
+          @RequestParam(defaultValue = DEFAULT_PAGE_SIZE)
+          int size) {
+    return roomService.getUserRooms(page, size).map(ResponseEntity::ok);
   }
 
   @PutMapping("/{roomId}")
@@ -126,21 +120,15 @@ public class RoomController {
               + "Only admins can update GROUP rooms.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "Room updated successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "400",
-            description = "Invalid room ID or request"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Room not found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Invalid room ID or request"),
+        @ApiResponse(responseCode = "404", description = "Room not found"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<RoomResponse>>> updateRoom(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> updateRoom(
       @Parameter(
               description = "ID of the room to update",
               required = true,
@@ -164,20 +152,12 @@ public class RoomController {
               + "Only admins can delete GROUP rooms.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "200",
-            description = "Room deleted successfully"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "400",
-            description = "Invalid room ID"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Room not found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "200", description = "Room deleted successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid room ID"),
+        @ApiResponse(responseCode = "404", description = "Room not found"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<Void>>> deleteRoom(
+  public Mono<ResponseEntity<ApiResponseDTO<Void>>> deleteRoom(
       @Parameter(
               description = "ID of the room to delete",
               required = true,
@@ -195,21 +175,17 @@ public class RoomController {
               + "The requester must be specified to verify permissions.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "Members added successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "400",
             description = "Invalid request or insufficient permissions"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Room not found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "Room not found"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<RoomResponse>>> addMembersToRoom(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> addMembersToRoom(
       @Parameter(
               description = "ID of the room to add members to",
               required = true,
@@ -239,21 +215,17 @@ public class RoomController {
               + "If the last admin leaves a GROUP room, the room may become orphaned.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "Member removed successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "400",
             description = "Invalid request or insufficient permissions"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Room not found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "Room not found"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<RoomResponse>>> removeMemberFromRoom(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> removeMemberFromRoom(
       @Parameter(
               description = "ID of the room",
               required = true,
@@ -283,21 +255,17 @@ public class RoomController {
               + "This operation is only valid for GROUP rooms.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "User promoted to admin successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "400",
             description = "Invalid request or insufficient permissions"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "404",
-            description = "Room not found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "404", description = "Room not found"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<RoomResponse>>> promoteToAdmin(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> promoteToAdmin(
       @Parameter(
               description = "ID of the room",
               required = true,
@@ -327,18 +295,14 @@ public class RoomController {
               + "This ensures that there's only one direct conversation between any two users.")
   @ApiResponses(
       value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        @ApiResponse(
             responseCode = "200",
             description = "Direct room retrieved or created successfully",
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "400",
-            description = "Invalid user IDs"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(
-            responseCode = "500",
-            description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Invalid user IDs"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponse<RoomResponse>>> getOrCreateDirectRoom(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> getOrCreateDirectRoom(
       @Parameter(description = "ID of the first user", required = true, example = "123")
           @RequestParam
           Long userId1,

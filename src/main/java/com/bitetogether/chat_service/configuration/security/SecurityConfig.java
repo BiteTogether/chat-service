@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.configuration;
+package com.bitetogether.chat_service.configuration.security;
 
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
@@ -10,7 +10,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableMethodSecurity // Enables @PreAuthorize
+@EnableMethodSecurity
 @EnableAutoConfiguration(exclude = OAuth2ResourceServerAutoConfiguration.class)
 public class SecurityConfig {
 

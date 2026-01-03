@@ -2,31 +2,32 @@ package com.bitetogether.chat_service.dto.request;
 
 import com.bitetogether.chat_service.enums.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @Schema(description = "Request payload for creating or updating a chat message")
 public class MessageRequest {
-
+  @NotBlank
   @Schema(
       description = "Unique identifier of the chat room where the message will be sent",
-      example = "room123",
-      required = true)
+      example = "room123")
   private String roomId;
 
+  @NotBlank
   @Schema(
       description = "The actual content/text of the message",
       example = "Hello, how are you?",
-      required = true,
       maxLength = 5000)
   private String content;
 
-  @Schema(
-      description = "Type of the message (TEXT, IMAGE, FILE, etc.)",
-      example = "TEXT",
-      required = true)
+  @NotBlank
+  @Schema(description = "Type of the message (TEXT, IMAGE, FILE, etc.)", example = "TEXT")
   private MessageType type;
 
+  @NotBlank
   @Schema(
       description = "ID of the message being replied to (optional, for threaded conversations)",
       example = "507f1f77bcf86cd799439011",

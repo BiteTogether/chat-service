@@ -2,12 +2,14 @@ package com.bitetogether.chat_service.model;
 
 import com.bitetogether.chat_service.enums.MessageType;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Document(collection = "messages")
 public class Message extends BaseModel {
   @Id private String id;

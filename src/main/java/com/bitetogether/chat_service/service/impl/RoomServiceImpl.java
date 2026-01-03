@@ -3,14 +3,17 @@ package com.bitetogether.chat_service.service.impl;
 import com.bitetogether.chat_service.dto.request.RoomRequest;
 import com.bitetogether.chat_service.dto.response.RoomResponse;
 import com.bitetogether.chat_service.enums.RoomType;
+import com.bitetogether.chat_service.exception.ErrorCode;
 import com.bitetogether.chat_service.mapper.RoomMapper;
 import com.bitetogether.chat_service.model.Room;
 import com.bitetogether.chat_service.repository.RoomRepository;
-import com.bitetogether.chat_service.service.inter.RoomService;
-import com.bitetogether.common.dto.ApiResponse;
-import com.bitetogether.common.dto.ApiResponsePagination;
+import com.bitetogether.chat_service.service.RoomService;
+import com.bitetogether.common.dto.ApiResponseDTO;
+import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import com.bitetogether.common.enums.ApiResponseStatus;
+import com.bitetogether.common.exception.AppException;
 import com.bitetogether.common.util.ApiResponseUtil;
+import com.bitetogether.common.util.UserContextUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,12 +36,8 @@ public class RoomServiceImpl implements RoomService {
   RoomRepository roomRepository;
   RoomMapper roomMapper;
 
-  // =========================================================
-  // =============== REST API METHODS ========================
-  // =========================================================
-
   @Override
-  public Mono<ApiResponse<RoomResponse>> createRoom(RoomRequest request) {
+  public Mono<ApiResponseDTO<RoomResponse>> createRoom(RoomRequest request) {
     log.info("REST: Creating room of type: {}", request.getRoomType());
     return createRoomDirect(request)
         .map(
@@ -57,7 +56,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> getRoomById(String roomId) {
+  public Mono<ApiResponseDTO<RoomResponse>> getRoomById(String roomId) {
     log.info("REST: Getting room by id: {}", roomId);
     return getRoomByIdDirect(roomId)
         .map(
@@ -74,7 +73,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> updateRoom(String roomId, RoomRequest request) {
+  public Mono<ApiResponseDTO<RoomResponse>> updateRoom(String roomId, RoomRequest request) {
     log.info("REST: Updating room: {}", roomId);
     return updateRoomDirect(roomId, request)
         .map(
@@ -93,7 +92,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<Void>> deleteRoom(String roomId) {
+  public Mono<ApiResponseDTO<Void>> deleteRoom(String roomId) {
     log.info("REST: Deleting room: {}", roomId);
     return deleteRoomDirect(roomId)
         .then(
@@ -113,7 +112,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> addMembersToRoom(
+  public Mono<ApiResponseDTO<RoomResponse>> addMembersToRoom(
       String roomId, List<Long> userIds, Long requesterId) {
     log.info("REST: Adding members to room: {}", roomId);
     return addMembersToRoomDirect(roomId, userIds, requesterId)
@@ -133,7 +132,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> removeMemberFromRoom(
+  public Mono<ApiResponseDTO<RoomResponse>> removeMemberFromRoom(
       String roomId, Long userId, Long requesterId) {
     log.info("REST: Removing member {} from room: {}", userId, roomId);
     return removeMemberFromRoomDirect(roomId, userId, requesterId)
@@ -153,7 +152,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> promoteToAdmin(
+  public Mono<ApiResponseDTO<RoomResponse>> promoteToAdmin(
       String roomId, Long userId, Long requesterId) {
     log.info("REST: Promoting user {} to admin in room: {}", userId, roomId);
     return promoteToAdminDirect(roomId, userId, requesterId)
@@ -173,7 +172,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2) {
+  public Mono<ApiResponseDTO<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2) {
     log.info("REST: Getting or creating direct room between {} and {}", userId1, userId2);
     return getOrCreateDirectRoomDirect(userId1, userId2)
         .map(
@@ -194,7 +193,8 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponsePagination<RoomResponse>> getUserRooms(Long userId, int page, int size) {
+  public Mono<ApiResponsePaginationDTO<RoomResponse>> getUserRooms(int page, int size) {
+    Long userId = UserContextUtils.getCurrentUserId();
     log.info("REST: Getting paginated rooms for user: {} (page: {}, size: {})", userId, page, size);
 
     Pageable pageable =
@@ -239,10 +239,6 @@ public class RoomServiceImpl implements RoomService {
             });
   }
 
-  // =========================================================
-  // =============== DIRECT METHODS ==========================
-  // =========================================================
-
   @Override
   public Mono<RoomResponse> createRoomDirect(RoomRequest request) {
     log.info("Direct: Creating room of type: {}", request.getRoomType());
@@ -250,11 +246,11 @@ public class RoomServiceImpl implements RoomService {
     // Validate request based on room type
     if (request.getRoomType() == RoomType.GROUP
         && (request.getName() == null || request.getName().isEmpty())) {
-      return Mono.error(new IllegalArgumentException("Group rooms must have a name"));
+      return Mono.error(new AppException(ErrorCode.ROOM_NAME_REQUIRED));
     }
 
     if (request.getRoomType() == RoomType.DIRECT && request.getUserIds().size() != 2) {
-      return Mono.error(new IllegalArgumentException("Direct rooms must have exactly 2 users"));
+      return Mono.error(new AppException(ErrorCode.ROOM_DIRECT_TWO_USERS_REQUIRED));
     }
 
     Room room = roomMapper.toRoom(request);
@@ -280,7 +276,7 @@ public class RoomServiceImpl implements RoomService {
 
     return roomRepository
         .findById(roomId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Room not found with id: " + roomId)))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
         .map(roomMapper::toRoomResponse)
         .doOnError(e -> log.error("Error getting room: {}", e.getMessage()));
   }
@@ -291,7 +287,7 @@ public class RoomServiceImpl implements RoomService {
 
     return roomRepository
         .findById(roomId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Room not found with id: " + roomId)))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
         .flatMap(
             existing -> {
               roomMapper.updateRoomFromRoomRequest(request, existing);
@@ -308,7 +304,7 @@ public class RoomServiceImpl implements RoomService {
 
     return roomRepository
         .findById(roomId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Room not found with id: " + roomId)))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
         .flatMap(roomRepository::delete)
         .doOnSuccess(v -> log.info("Room deleted: {}", roomId))
         .doOnError(e -> log.error("Error deleting room: {}", e.getMessage()));
@@ -321,13 +317,12 @@ public class RoomServiceImpl implements RoomService {
 
     return roomRepository
         .findById(roomId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Room not found with id: " + roomId)))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
         .flatMap(
             room -> {
               if (room.getRoomType() == RoomType.GROUP) {
                 if (room.getAdminIds() == null || !room.getAdminIds().contains(requesterId)) {
-                  return Mono.error(
-                      new IllegalArgumentException("Only admins can add members to group rooms"));
+                  return Mono.error(new AppException(ErrorCode.ROOM_ADMIN_REQUIRED));
                 }
               }
 
@@ -356,7 +351,7 @@ public class RoomServiceImpl implements RoomService {
 
     return roomRepository
         .findById(roomId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Room not found with id: " + roomId)))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
         .flatMap(
             room -> {
               // Check if requester is admin or removing themselves
@@ -366,8 +361,7 @@ public class RoomServiceImpl implements RoomService {
                 boolean isSelf = userId.equals(requesterId);
 
                 if (!isAdmin && !isSelf) {
-                  return Mono.error(
-                      new IllegalArgumentException("Only admins can remove other members"));
+                  return Mono.error(new AppException(ErrorCode.ROOM_REMOVE_MEMBER_UNAUTHORIZED));
                 }
               }
 
@@ -394,24 +388,22 @@ public class RoomServiceImpl implements RoomService {
 
     return roomRepository
         .findById(roomId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Room not found with id: " + roomId)))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
         .flatMap(
             room -> {
               // Only group rooms can have multiple admins
               if (room.getRoomType() != RoomType.GROUP) {
-                return Mono.error(new IllegalArgumentException("Only group rooms can have admins"));
+                return Mono.error(new AppException(ErrorCode.ROOM_ONLY_GROUP_HAS_ADMINS));
               }
 
               // Check if requester is admin
               if (room.getAdminIds() == null || !room.getAdminIds().contains(requesterId)) {
-                return Mono.error(
-                    new IllegalArgumentException("Only admins can promote other users"));
+                return Mono.error(new AppException(ErrorCode.ROOM_PROMOTE_ADMIN_UNAUTHORIZED));
               }
 
               // Check if user is a member
               if (room.getUserIds() == null || !room.getUserIds().contains(userId)) {
-                return Mono.error(
-                    new IllegalArgumentException("User must be a member of the room"));
+                return Mono.error(new AppException(ErrorCode.ROOM_USER_NOT_MEMBER));
               }
 
               // Add to admins if not already

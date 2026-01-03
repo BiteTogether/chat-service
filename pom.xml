@@ -32,7 +32,7 @@
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <spotless.version>2.46.1</spotless.version>
-        <common-service.version>0.0.4-SNAPSHOT</common-service.version>
+        <common-service.version>0.0.5-SNAPSHOT</common-service.version>
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
 	</properties>
 
