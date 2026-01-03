@@ -15,5 +15,4 @@ public enum MessageType {
 
   @Schema(description = "Emoji or reaction message")
   EMOJI,
-  ;
 }

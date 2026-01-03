@@ -104,7 +104,7 @@ public class RoomServiceImpl implements RoomService {
             e -> {
               log.error("Failed to delete room: {}", e.getMessage());
               return Mono.just(
-                  ApiResponseUtil.<Void>buildApiResponse(
+                  ApiResponseUtil.buildApiResponse(
                       ApiResponseStatus.BAD_REQUEST,
                       "Failed to delete room: " + e.getMessage(),
                       null));
@@ -256,11 +256,10 @@ public class RoomServiceImpl implements RoomService {
     Room room = roomMapper.toRoom(request);
 
     // Set admin IDs for group rooms (creator becomes admin)
-    if (request.getRoomType() == RoomType.GROUP) {
-      if (request.getAdminIds() == null || request.getAdminIds().isEmpty()) {
-        // First user in the list becomes admin by default
-        room.setAdminIds(Collections.singletonList(request.getUserIds().get(0)));
-      }
+    if (request.getRoomType() == RoomType.GROUP
+        && (request.getAdminIds() == null || request.getAdminIds().isEmpty())) {
+      // First user in the list becomes admin by default
+      room.setAdminIds(Collections.singletonList(request.getUserIds().getFirst()));
     }
 
     return roomRepository
@@ -320,10 +319,9 @@ public class RoomServiceImpl implements RoomService {
         .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
         .flatMap(
             room -> {
-              if (room.getRoomType() == RoomType.GROUP) {
-                if (room.getAdminIds() == null || !room.getAdminIds().contains(requesterId)) {
-                  return Mono.error(new AppException(ErrorCode.ROOM_ADMIN_REQUIRED));
-                }
+              if (room.getRoomType() == RoomType.GROUP
+                  && (room.getAdminIds() == null || !room.getAdminIds().contains(requesterId))) {
+                return Mono.error(new AppException(ErrorCode.ROOM_ADMIN_REQUIRED));
               }
 
               List<Long> currentUserIds =
@@ -407,10 +405,7 @@ public class RoomServiceImpl implements RoomService {
               }
 
               // Add to admins if not already
-              List<Long> adminIds =
-                  room.getAdminIds() != null
-                      ? new ArrayList<>(room.getAdminIds())
-                      : new ArrayList<>();
+              List<Long> adminIds = new ArrayList<>(room.getAdminIds());
               if (!adminIds.contains(userId)) {
                 adminIds.add(userId);
                 room.setAdminIds(adminIds);
