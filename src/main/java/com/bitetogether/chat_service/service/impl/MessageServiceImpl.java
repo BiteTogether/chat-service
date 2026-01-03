@@ -16,7 +16,7 @@ import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.exception.AppException;
 import com.bitetogether.common.util.ApiResponseUtil;
-import com.bitetogether.common.util.UserContextUtils;
+import com.bitetogether.common.util.ReactiveUserContextUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AccessLevel;
@@ -209,12 +209,12 @@ public class MessageServiceImpl implements MessageService {
     log.info("Direct: Sending message to room: {}", request.getRoomId());
     Message message = messageMapper.toMessage(request);
 
-    Long currentUserId = UserContextUtils.getCurrentUserId();
-    message.setSenderId(currentUserId);
-
-    // Emit to sink for real-time streaming
-    return messageRepository
-        .save(message)
+    return ReactiveUserContextUtils.getUserIdOrError()
+        .flatMap(
+            currentUserId -> {
+              message.setSenderId(currentUserId);
+              return messageRepository.save(message);
+            })
         .flatMap(this::enrichMessageWithSenderAndReplyContext)
         .flatMap(
             response -> {
@@ -232,31 +232,33 @@ public class MessageServiceImpl implements MessageService {
   public Mono<MessageResponse> updateMessageDirect(String messageId, MessageRequest request) {
     log.info("Direct: Updating message: {}", messageId);
 
-    Long currentUserId = UserContextUtils.getCurrentUserId();
-
-    return messageRepository
-        .findById(messageId)
-        .switchIfEmpty(Mono.error(new AppException(ErrorCode.MESSAGE_NOT_FOUND)))
+    return ReactiveUserContextUtils.getUserIdOrError()
         .flatMap(
-            existing -> {
-              if (!existing.getSenderId().equals(currentUserId)) {
-                log.warn(
-                    "User {} attempted to update message {} owned by user {}",
-                    currentUserId,
-                    messageId,
-                    existing.getSenderId());
-                return Mono.error(new AppException(ErrorCode.MESSAGE_UPDATE_UNAUTHORIZED));
-              }
-              messageMapper.updateMessageFromMessageRequest(request, existing);
-              return messageRepository.save(existing);
-            })
-        .flatMap(this::enrichMessageWithSenderAndReplyContext)
-        .doOnNext(
-            response -> {
-              log.info("Message updated: {}", response.getId());
-              // Emit the updated message to stream subscribers
-              messageSink.tryEmitNext(response);
-            })
+            currentUserId ->
+                messageRepository
+                    .findById(messageId)
+                    .switchIfEmpty(Mono.error(new AppException(ErrorCode.MESSAGE_NOT_FOUND)))
+                    .flatMap(
+                        existing -> {
+                          if (!existing.getSenderId().equals(currentUserId)) {
+                            log.warn(
+                                "User {} attempted to update message {} owned by user {}",
+                                currentUserId,
+                                messageId,
+                                existing.getSenderId());
+                            return Mono.error(
+                                new AppException(ErrorCode.MESSAGE_UPDATE_UNAUTHORIZED));
+                          }
+                          messageMapper.updateMessageFromMessageRequest(request, existing);
+                          return messageRepository.save(existing);
+                        })
+                    .flatMap(this::enrichMessageWithSenderAndReplyContext)
+                    .doOnNext(
+                        response -> {
+                          log.info("Message updated: {}", response.getId());
+                          // Emit the updated message to stream subscribers
+                          messageSink.tryEmitNext(response);
+                        }))
         .doOnError(e -> log.error("Error updating message: {}", e.getMessage()));
   }
 
@@ -264,30 +266,33 @@ public class MessageServiceImpl implements MessageService {
   public Mono<Void> deleteMessageDirect(String messageId) {
     log.info("Direct: Deleting message: {}", messageId);
 
-    Long currentUserId = UserContextUtils.getCurrentUserId();
-
-    return messageRepository
-        .findById(messageId)
-        .switchIfEmpty(Mono.error(new AppException(ErrorCode.MESSAGE_NOT_FOUND)))
+    return ReactiveUserContextUtils.getUserIdOrError()
         .flatMap(
-            message -> {
-              if (!message.getSenderId().equals(currentUserId)) {
-                log.warn(
-                    "User {} attempted to delete message {} owned by user {}",
-                    currentUserId,
-                    messageId,
-                    message.getSenderId());
-                return Mono.error(new AppException(ErrorCode.MESSAGE_DELETE_UNAUTHORIZED));
-              }
-              MessageResponse deletionEvent = messageMapper.toMessageResponse(message);
-              deletionEvent.setDeleted(true);
+            currentUserId ->
+                messageRepository
+                    .findById(messageId)
+                    .switchIfEmpty(Mono.error(new AppException(ErrorCode.MESSAGE_NOT_FOUND)))
+                    .flatMap(
+                        message -> {
+                          if (!message.getSenderId().equals(currentUserId)) {
+                            log.warn(
+                                "User {} attempted to delete message {} owned by user {}",
+                                currentUserId,
+                                messageId,
+                                message.getSenderId());
+                            return Mono.error(
+                                new AppException(ErrorCode.MESSAGE_DELETE_UNAUTHORIZED));
+                          }
+                          MessageResponse deletionEvent = messageMapper.toMessageResponse(message);
+                          deletionEvent.setDeleted(true);
 
-              // Emit the deletion event to stream subscribers
-              messageSink.tryEmitNext(deletionEvent);
+                          // Emit the deletion event to stream subscribers
+                          messageSink.tryEmitNext(deletionEvent);
 
-              return messageRepository.delete(message);
-            })
-        .doOnSuccess(v -> log.info("Message deleted and deletion event emitted: {}", messageId))
+                          return messageRepository.delete(message);
+                        })
+                    .doOnSuccess(
+                        v -> log.info("Message deleted and deletion event emitted: {}", messageId)))
         .doOnError(e -> log.error("Error deleting message: {}", e.getMessage()));
   }
 

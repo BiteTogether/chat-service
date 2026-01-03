@@ -13,7 +13,7 @@ import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.exception.AppException;
 import com.bitetogether.common.util.ApiResponseUtil;
-import com.bitetogether.common.util.UserContextUtils;
+import com.bitetogether.common.util.ReactiveUserContextUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -194,8 +194,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<ApiResponsePaginationDTO<RoomResponse>> getUserRooms(int page, int size) {
-    Long userId = UserContextUtils.getCurrentUserId();
-    log.info("REST: Getting paginated rooms for user: {} (page: {}, size: {})", userId, page, size);
+    log.info("REST: Getting paginated rooms for user (page: {}, size: {})", page, size);
 
     Pageable pageable =
         org.springframework.data.domain.PageRequest.of(
@@ -203,27 +202,33 @@ public class RoomServiceImpl implements RoomService {
             size,
             org.springframework.data.domain.Sort.by(Sort.Direction.DESC, "lastMessageAt"));
 
-    Mono<Long> totalMono = roomRepository.countByUserIdsContaining(userId);
-    Mono<java.util.List<RoomResponse>> contentMono =
-        roomRepository
-            .findByUserIdsContaining(userId, pageable)
-            .map(roomMapper::toRoomResponse)
-            .collectList();
+    return ReactiveUserContextUtils.getUserIdOrError()
+        .flatMap(
+            userId -> {
+              log.info("Getting rooms for user: {}", userId);
 
-    return Mono.zip(totalMono, contentMono)
-        .map(
-            tuple -> {
-              long total = tuple.getT1();
-              java.util.List<RoomResponse> content = tuple.getT2();
-              int totalPages = (int) Math.ceil((double) total / size);
+              Mono<Long> totalMono = roomRepository.countByUserIdsContaining(userId);
+              Mono<java.util.List<RoomResponse>> contentMono =
+                  roomRepository
+                      .findByUserIdsContaining(userId, pageable)
+                      .map(roomMapper::toRoomResponse)
+                      .collectList();
 
-              return ApiResponseUtil.buildApiResponse(
-                  ApiResponseStatus.SUCCESS,
-                  "Rooms retrieved successfully",
-                  content,
-                  page,
-                  totalPages,
-                  total);
+              return Mono.zip(totalMono, contentMono)
+                  .map(
+                      tuple -> {
+                        long total = tuple.getT1();
+                        java.util.List<RoomResponse> content = tuple.getT2();
+                        int totalPages = (int) Math.ceil((double) total / size);
+
+                        return ApiResponseUtil.buildApiResponse(
+                            ApiResponseStatus.SUCCESS,
+                            "Rooms retrieved successfully",
+                            content,
+                            page,
+                            totalPages,
+                            total);
+                      });
             })
         .onErrorResume(
             e -> {
@@ -253,17 +258,30 @@ public class RoomServiceImpl implements RoomService {
       return Mono.error(new AppException(ErrorCode.ROOM_DIRECT_TWO_USERS_REQUIRED));
     }
 
-    Room room = roomMapper.toRoom(request);
+    return ReactiveUserContextUtils.getUserIdOrError()
+        .flatMap(
+            currentUserId -> {
+              Room room = roomMapper.toRoom(request);
 
-    // Set admin IDs for group rooms (creator becomes admin)
-    if (request.getRoomType() == RoomType.GROUP
-        && (request.getAdminIds() == null || request.getAdminIds().isEmpty())) {
-      // First user in the list becomes admin by default
-      room.setAdminIds(Collections.singletonList(request.getUserIds().getFirst()));
-    }
+              // Ensure creator is included in userIds
+              List<Long> userIds =
+                  room.getUserIds() != null
+                      ? new ArrayList<>(room.getUserIds())
+                      : new ArrayList<>();
 
-    return roomRepository
-        .save(room)
+              if (!userIds.contains(currentUserId)) {
+                userIds.add(currentUserId);
+                room.setUserIds(userIds);
+                log.debug("Added creator userId={} to room userIds", currentUserId);
+              }
+
+              // Always set creator as admin (for both GROUP and DIRECT rooms)
+              // Ignore adminIds from request - creator is automatically admin
+              room.setAdminIds(Collections.singletonList(currentUserId));
+              log.debug("Set creator userId={} as room admin", currentUserId);
+
+              return roomRepository.save(room);
+            })
         .map(roomMapper::toRoomResponse)
         .doOnNext(response -> log.info("Room created with id: {}", response.getId()))
         .doOnError(e -> log.error("Error creating room: {}", e.getMessage()));

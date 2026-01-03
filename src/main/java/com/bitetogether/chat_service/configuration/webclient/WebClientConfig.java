@@ -12,9 +12,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -50,20 +47,23 @@ public class WebClientConfig {
 
   private ExchangeFilterFunction forwardBearerToken() {
     return (request, next) ->
-        ReactiveSecurityContextHolder.getContext()
-            .map(SecurityContext::getAuthentication)
-            .filter(
-                authentication ->
-                    authentication != null && authentication.getPrincipal() instanceof Jwt)
-            .map(authentication -> (Jwt) authentication.getPrincipal())
-            .map(jwt -> "Bearer " + jwt.getTokenValue())
-            .map(
-                token ->
+        Mono.deferContextual(
+            contextView -> {
+              // Try to get authorization header from Reactor context
+              if (contextView.hasKey("authorizationHeader")) {
+                String authHeader = contextView.get("authorizationHeader");
+                log.debug(
+                    "Found Authorization header in context, forwarding to: {}", request.url());
+
+                return next.exchange(
                     org.springframework.web.reactive.function.client.ClientRequest.from(request)
-                        .header(HttpHeaders.AUTHORIZATION, token)
-                        .build())
-            .defaultIfEmpty(request)
-            .flatMap(next::exchange);
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
+                        .build());
+              }
+
+              log.warn("No Authorization header in context for request to: {}", request.url());
+              return next.exchange(request);
+            });
   }
 
   private ExchangeFilterFunction logRequest() {

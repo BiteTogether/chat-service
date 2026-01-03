@@ -39,7 +39,8 @@ public class RoomController {
       summary = "Create a new chat room",
       description =
           "Creates a new chat room. Can be either a DIRECT chat (1-on-1 between 2 users) or a GROUP chat (multiple users). "
-              + "For GROUP rooms, the name is required and the creator becomes an admin by default.")
+              + "For GROUP rooms, the name is required. "
+              + "Do NOT provide adminIds in the request - it will be auto-assigned to the creator.")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -53,7 +54,8 @@ public class RoomController {
       })
   public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> createRoom(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Room details to create",
+              description =
+                  "Room details to create. NOTE: Do not include adminIds - it will be auto-assigned to the creator.",
               required = true,
               content = @Content(schema = @Schema(implementation = RoomRequest.class)))
           @RequestBody

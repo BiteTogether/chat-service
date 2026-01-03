@@ -32,7 +32,11 @@ public class RoomRequest {
   private RoomType roomType;
 
   @Schema(
-      description = "List of user IDs who are admins of this room (only for GROUP rooms)",
-      example = "[123]")
+      description =
+          "List of user IDs who are admins of this room. "
+              + "NOTE: This field is auto-assigned - the room creator will automatically become admin. "
+              + "You do NOT need to provide this field when creating a room.",
+      example = "[123]",
+      accessMode = Schema.AccessMode.READ_ONLY)
   private List<Long> adminIds;
 }
