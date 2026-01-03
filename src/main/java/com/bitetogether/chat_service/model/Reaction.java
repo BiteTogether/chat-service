@@ -14,7 +14,7 @@ public class Reaction extends BaseModel {
   private String messageId;
 
   @Field("user_id")
-  private String userId;
+  private Long userId;
 
   @Field("emoji")
   private String emoji;

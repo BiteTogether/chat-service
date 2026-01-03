@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -89,9 +88,9 @@ public class RoomController {
 
   @GetMapping("/user/{userId}")
   @Operation(
-      summary = "Get all rooms for a user",
+      summary = "Get all rooms for a user with pagination",
       description =
-          "Retrieves all chat rooms where the specified user is a member. "
+          "Retrieves chat rooms where the specified user is a member with pagination support. "
               + "Results are ordered by the timestamp of the last message (most recent first).")
   @ApiResponses(
       value = {
@@ -101,15 +100,22 @@ public class RoomController {
             content = @Content(schema = @Schema(implementation = RoomResponse.class))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "400",
-            description = "Invalid user ID"),
+            description = "Invalid user ID or pagination parameters"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "500",
             description = "Internal server error")
       })
-  public Flux<ResponseEntity<ApiResponse<RoomResponse>>> getUserRooms(
-      @Parameter(description = "ID of the user", required = true, example = "user123") @PathVariable
-          String userId) {
-    return roomService.getUserRooms(userId).map(ResponseEntity::ok);
+  public Mono<ResponseEntity<com.bitetogether.common.dto.ApiResponsePagination<RoomResponse>>>
+      getUserRoomsPaginated(
+          @Parameter(description = "ID of the user", required = true, example = "123") @PathVariable
+              Long userId,
+          @Parameter(description = "Page number (0-indexed)", example = "0")
+              @RequestParam(defaultValue = "0")
+              int page,
+          @Parameter(description = "Number of items per page", example = "20")
+              @RequestParam(defaultValue = "20")
+              int size) {
+    return roomService.getUserRooms(userId, page, size).map(ResponseEntity::ok);
   }
 
   @PutMapping("/{roomId}")
@@ -213,15 +219,15 @@ public class RoomController {
       @Parameter(
               description = "List of user IDs to add to the room",
               required = true,
-              example = "[\"user123\", \"user456\"]")
+              example = "[123, 456]")
           @RequestBody
-          List<String> userIds,
+          List<Long> userIds,
       @Parameter(
               description = "ID of the user making the request (for permission checking)",
               required = true,
-              example = "user123")
+              example = "123")
           @RequestParam
-          String requesterId) {
+          Long requesterId) {
     return roomService.addMembersToRoom(roomId, userIds, requesterId).map(ResponseEntity::ok);
   }
 
@@ -257,15 +263,15 @@ public class RoomController {
       @Parameter(
               description = "ID of the user to remove from the room",
               required = true,
-              example = "user456")
+              example = "456")
           @PathVariable
-          String userId,
+          Long userId,
       @Parameter(
               description = "ID of the user making the request (for permission checking)",
               required = true,
-              example = "user123")
+              example = "123")
           @RequestParam
-          String requesterId) {
+          Long requesterId) {
     return roomService.removeMemberFromRoom(roomId, userId, requesterId).map(ResponseEntity::ok);
   }
 
@@ -301,15 +307,15 @@ public class RoomController {
       @Parameter(
               description = "ID of the user to promote to admin",
               required = true,
-              example = "user456")
+              example = "456")
           @PathVariable
-          String userId,
+          Long userId,
       @Parameter(
               description = "ID of the user making the request (must be an admin)",
               required = true,
-              example = "user123")
+              example = "123")
           @RequestParam
-          String requesterId) {
+          Long requesterId) {
     return roomService.promoteToAdmin(roomId, userId, requesterId).map(ResponseEntity::ok);
   }
 
@@ -333,12 +339,12 @@ public class RoomController {
             description = "Internal server error")
       })
   public Mono<ResponseEntity<ApiResponse<RoomResponse>>> getOrCreateDirectRoom(
-      @Parameter(description = "ID of the first user", required = true, example = "user123")
+      @Parameter(description = "ID of the first user", required = true, example = "123")
           @RequestParam
-          String userId1,
-      @Parameter(description = "ID of the second user", required = true, example = "user456")
+          Long userId1,
+      @Parameter(description = "ID of the second user", required = true, example = "456")
           @RequestParam
-          String userId2) {
+          Long userId2) {
     return roomService.getOrCreateDirectRoom(userId1, userId2).map(ResponseEntity::ok);
   }
 }

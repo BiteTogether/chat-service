@@ -21,9 +21,9 @@ public class RoomRequest {
 
   @Schema(
       description = "List of user IDs who are members of this room",
-      example = "[\"user123\", \"user456\", \"user789\"]",
+      example = "[123, 456, 789]",
       required = true)
-  private List<String> userIds;
+  private List<Long> userIds;
 
   @Schema(
       description = "Type of chat room (DIRECT for 1-on-1, GROUP for multiple users)",
@@ -33,6 +33,6 @@ public class RoomRequest {
 
   @Schema(
       description = "List of user IDs who are admins of this room (only for GROUP rooms)",
-      example = "[\"user123\"]")
-  private List<String> adminIds;
+      example = "[123]")
+  private List<Long> adminIds;
 }

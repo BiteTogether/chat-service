@@ -8,6 +8,7 @@ import com.bitetogether.chat_service.model.Room;
 import com.bitetogether.chat_service.repository.RoomRepository;
 import com.bitetogether.chat_service.service.inter.RoomService;
 import com.bitetogether.common.dto.ApiResponse;
+import com.bitetogether.common.dto.ApiResponsePagination;
 import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.util.ApiResponseUtil;
 import java.time.LocalDateTime;
@@ -18,8 +19,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -72,25 +74,6 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Flux<ApiResponse<RoomResponse>> getUserRooms(String userId) {
-    log.info("REST: Getting rooms for user: {}", userId);
-    return getUserRoomsDirect(userId)
-        .map(
-            response ->
-                ApiResponseUtil.buildApiResponse(
-                    ApiResponseStatus.SUCCESS, "Rooms retrieved successfully", response))
-        .onErrorResume(
-            e -> {
-              log.error("Failed to get user rooms: {}", e.getMessage());
-              return Flux.just(
-                  ApiResponseUtil.buildApiResponse(
-                      ApiResponseStatus.BAD_REQUEST,
-                      "Failed to fetch rooms: " + e.getMessage(),
-                      null));
-            });
-  }
-
-  @Override
   public Mono<ApiResponse<RoomResponse>> updateRoom(String roomId, RoomRequest request) {
     log.info("REST: Updating room: {}", roomId);
     return updateRoomDirect(roomId, request)
@@ -131,7 +114,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<ApiResponse<RoomResponse>> addMembersToRoom(
-      String roomId, List<String> userIds, String requesterId) {
+      String roomId, List<Long> userIds, Long requesterId) {
     log.info("REST: Adding members to room: {}", roomId);
     return addMembersToRoomDirect(roomId, userIds, requesterId)
         .map(
@@ -151,7 +134,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<ApiResponse<RoomResponse>> removeMemberFromRoom(
-      String roomId, String userId, String requesterId) {
+      String roomId, Long userId, Long requesterId) {
     log.info("REST: Removing member {} from room: {}", userId, roomId);
     return removeMemberFromRoomDirect(roomId, userId, requesterId)
         .map(
@@ -171,7 +154,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<ApiResponse<RoomResponse>> promoteToAdmin(
-      String roomId, String userId, String requesterId) {
+      String roomId, Long userId, Long requesterId) {
     log.info("REST: Promoting user {} to admin in room: {}", userId, roomId);
     return promoteToAdminDirect(roomId, userId, requesterId)
         .map(
@@ -190,7 +173,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(String userId1, String userId2) {
+  public Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2) {
     log.info("REST: Getting or creating direct room between {} and {}", userId1, userId2);
     return getOrCreateDirectRoomDirect(userId1, userId2)
         .map(
@@ -207,6 +190,52 @@ public class RoomServiceImpl implements RoomService {
                       ApiResponseStatus.BAD_REQUEST,
                       "Failed to get/create direct room: " + e.getMessage(),
                       null));
+            });
+  }
+
+  @Override
+  public Mono<ApiResponsePagination<RoomResponse>> getUserRooms(Long userId, int page, int size) {
+    log.info("REST: Getting paginated rooms for user: {} (page: {}, size: {})", userId, page, size);
+
+    Pageable pageable =
+        org.springframework.data.domain.PageRequest.of(
+            page,
+            size,
+            org.springframework.data.domain.Sort.by(Sort.Direction.DESC, "lastMessageAt"));
+
+    Mono<Long> totalMono = roomRepository.countByUserIdsContaining(userId);
+    Mono<java.util.List<RoomResponse>> contentMono =
+        roomRepository
+            .findByUserIdsContaining(userId, pageable)
+            .map(roomMapper::toRoomResponse)
+            .collectList();
+
+    return Mono.zip(totalMono, contentMono)
+        .map(
+            tuple -> {
+              long total = tuple.getT1();
+              java.util.List<RoomResponse> content = tuple.getT2();
+              int totalPages = (int) Math.ceil((double) total / size);
+
+              return ApiResponseUtil.buildApiResponse(
+                  ApiResponseStatus.SUCCESS,
+                  "Rooms retrieved successfully",
+                  content,
+                  page,
+                  totalPages,
+                  total);
+            })
+        .onErrorResume(
+            e -> {
+              log.error("Failed to get paginated rooms: {}", e.getMessage());
+              return Mono.just(
+                  ApiResponseUtil.buildApiResponse(
+                      ApiResponseStatus.BAD_REQUEST,
+                      "Failed to fetch rooms: " + e.getMessage(),
+                      java.util.Collections.emptyList(),
+                      page,
+                      0,
+                      0L));
             });
   }
 
@@ -257,17 +286,6 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Flux<RoomResponse> getUserRoomsDirect(String userId) {
-    log.info("Direct: Getting rooms for user: {}", userId);
-
-    return roomRepository
-        .findByUserIdsContainingOrderByLastMessageAtDesc(userId)
-        .map(roomMapper::toRoomResponse)
-        .doOnComplete(() -> log.info("Finished getting rooms for user: {}", userId))
-        .doOnError(e -> log.error("Error getting user rooms: {}", e.getMessage()));
-  }
-
-  @Override
   public Mono<RoomResponse> updateRoomDirect(String roomId, RoomRequest request) {
     log.info("Direct: Updating room: {}", roomId);
 
@@ -298,7 +316,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<RoomResponse> addMembersToRoomDirect(
-      String roomId, List<String> userIds, String requesterId) {
+      String roomId, List<Long> userIds, Long requesterId) {
     log.info("Direct: Adding members to room: {}", roomId);
 
     return roomRepository
@@ -313,11 +331,11 @@ public class RoomServiceImpl implements RoomService {
                 }
               }
 
-              List<String> currentUserIds =
+              List<Long> currentUserIds =
                   room.getUserIds() != null
                       ? new ArrayList<>(room.getUserIds())
                       : new ArrayList<>();
-              for (String userId : userIds) {
+              for (Long userId : userIds) {
                 if (!currentUserIds.contains(userId)) {
                   currentUserIds.add(userId);
                 }
@@ -333,7 +351,7 @@ public class RoomServiceImpl implements RoomService {
 
   @Override
   public Mono<RoomResponse> removeMemberFromRoomDirect(
-      String roomId, String userId, String requesterId) {
+      String roomId, Long userId, Long requesterId) {
     log.info("Direct: Removing member {} from room: {}", userId, roomId);
 
     return roomRepository
@@ -371,7 +389,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<RoomResponse> promoteToAdminDirect(String roomId, String userId, String requesterId) {
+  public Mono<RoomResponse> promoteToAdminDirect(String roomId, Long userId, Long requesterId) {
     log.info("Direct: Promoting user {} to admin in room: {}", userId, roomId);
 
     return roomRepository
@@ -397,7 +415,7 @@ public class RoomServiceImpl implements RoomService {
               }
 
               // Add to admins if not already
-              List<String> adminIds =
+              List<Long> adminIds =
                   room.getAdminIds() != null
                       ? new ArrayList<>(room.getAdminIds())
                       : new ArrayList<>();
@@ -414,10 +432,10 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<RoomResponse> getOrCreateDirectRoomDirect(String userId1, String userId2) {
+  public Mono<RoomResponse> getOrCreateDirectRoomDirect(Long userId1, Long userId2) {
     log.info("Direct: Getting or creating direct room between {} and {}", userId1, userId2);
 
-    List<String> userIds = new ArrayList<>();
+    List<Long> userIds = new ArrayList<>();
     userIds.add(userId1);
     userIds.add(userId2);
     Collections.sort(userIds); // Sort to ensure consistent ordering

@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.dto.response;
 
-import com.bitetogether.chat_service.dto.UserDTO;
+import com.bitetogether.chat_service.dto.SenderInfo;
 import com.bitetogether.chat_service.enums.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -26,7 +26,7 @@ public class MessageResponse extends BaseResponse {
   private MessageType type;
 
   @Schema(description = "Details of the user who sent this message")
-  private UserDTO sender;
+  private SenderInfo sender;
 
   @Schema(
       description = "The original message being replied to (if this is a reply)",

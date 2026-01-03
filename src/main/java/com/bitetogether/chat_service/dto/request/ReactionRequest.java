@@ -15,9 +15,9 @@ public class ReactionRequest {
 
   @Schema(
       description = "Unique identifier of the user adding the reaction",
-      example = "user123",
+      example = "123",
       required = true)
-  private String userId;
+  private Long userId;
 
   @Schema(
       description = "The emoji character or code representing the reaction",

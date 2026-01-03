@@ -11,8 +11,7 @@ spring:
     include:
       - security
       - openapi
-      - jwt
       - database
-      - openfeign
+      - webclient
       - kafka
       - rsocket
