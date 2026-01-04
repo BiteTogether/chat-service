@@ -1,7 +1,9 @@
 package com.bitetogether.chat_service.service.impl;
 
+import com.bitetogether.chat_service.client.webclient.UserClient;
+import com.bitetogether.chat_service.dto.request.RoomDetailResponse;
 import com.bitetogether.chat_service.dto.request.RoomRequest;
-import com.bitetogether.chat_service.dto.response.RoomResponse;
+import com.bitetogether.chat_service.dto.request.RoomResponse;
 import com.bitetogether.chat_service.enums.RoomType;
 import com.bitetogether.chat_service.exception.ErrorCode;
 import com.bitetogether.chat_service.mapper.RoomMapper;
@@ -22,6 +24,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -35,6 +38,7 @@ public class RoomServiceImpl implements RoomService {
 
   RoomRepository roomRepository;
   RoomMapper roomMapper;
+  UserClient userClient;
 
   @Override
   public Mono<ApiResponseDTO<RoomResponse>> createRoom(RoomRequest request) {
@@ -56,7 +60,7 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponseDTO<RoomResponse>> getRoomById(String roomId) {
+  public Mono<ApiResponseDTO<RoomDetailResponse>> getRoomById(String roomId) {
     log.info("REST: Getting room by id: {}", roomId);
     return getRoomByIdDirect(roomId)
         .map(
@@ -193,14 +197,10 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponsePaginationDTO<RoomResponse>> getUserRooms(int page, int size) {
+  public Mono<ApiResponsePaginationDTO<RoomDetailResponse>> getUserRooms(int page, int size) {
     log.info("REST: Getting paginated rooms for user (page: {}, size: {})", page, size);
 
-    Pageable pageable =
-        org.springframework.data.domain.PageRequest.of(
-            page,
-            size,
-            org.springframework.data.domain.Sort.by(Sort.Direction.DESC, "lastMessageAt"));
+    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "lastMessageAt"));
 
     return ReactiveUserContextUtils.getUserIdOrError()
         .flatMap(
@@ -208,17 +208,32 @@ public class RoomServiceImpl implements RoomService {
               log.info("Getting rooms for user: {}", userId);
 
               Mono<Long> totalMono = roomRepository.countByUserIdsContaining(userId);
-              Mono<java.util.List<RoomResponse>> contentMono =
+
+              Mono<List<RoomDetailResponse>> contentMono =
                   roomRepository
                       .findByUserIdsContaining(userId, pageable)
-                      .map(roomMapper::toRoomResponse)
+                      .flatMap(
+                          room -> {
+                            RoomDetailResponse response = roomMapper.toRoomDetailResponse(room);
+
+                            // Fetch user details for each room
+                            return userClient
+                                .getListUsersByIds(room.getUserIds())
+                                .map(
+                                    listUserDetailDTO -> {
+                                      response.setMembers(listUserDetailDTO.getUsers());
+                                      return response;
+                                    })
+                                .defaultIfEmpty(
+                                    response); // Return response even if user service fails
+                          })
                       .collectList();
 
               return Mono.zip(totalMono, contentMono)
                   .map(
                       tuple -> {
                         long total = tuple.getT1();
-                        java.util.List<RoomResponse> content = tuple.getT2();
+                        java.util.List<RoomDetailResponse> content = tuple.getT2();
                         int totalPages = (int) Math.ceil((double) total / size);
 
                         return ApiResponseUtil.buildApiResponse(
@@ -288,13 +303,26 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<RoomResponse> getRoomByIdDirect(String roomId) {
+  public Mono<RoomDetailResponse> getRoomByIdDirect(String roomId) {
     log.info("Direct: Getting room by id: {}", roomId);
 
     return roomRepository
         .findById(roomId)
         .switchIfEmpty(Mono.error(new AppException(ErrorCode.ROOM_NOT_FOUND)))
-        .map(roomMapper::toRoomResponse)
+        .flatMap(
+            room -> {
+              RoomDetailResponse response = roomMapper.toRoomDetailResponse(room);
+
+              // Fetch user details reactively
+              return userClient
+                  .getListUsersByIds(room.getUserIds())
+                  .map(
+                      listUserDetailDTO -> {
+                        response.setMembers(listUserDetailDTO.getUsers());
+                        return response;
+                      })
+                  .defaultIfEmpty(response);
+            })
         .doOnError(e -> log.error("Error getting room: {}", e.getMessage()));
   }
 

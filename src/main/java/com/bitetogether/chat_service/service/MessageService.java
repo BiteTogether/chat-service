@@ -1,7 +1,7 @@
 package com.bitetogether.chat_service.service;
 
-import com.bitetogether.chat_service.dto.request.MessageRequest;
-import com.bitetogether.chat_service.dto.response.MessageResponse;
+import com.bitetogether.chat_service.dto.message.MessageRequest;
+import com.bitetogether.chat_service.dto.message.MessageResponse;
 import com.bitetogether.common.dto.ApiResponseDTO;
 import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import reactor.core.publisher.Flux;

@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.dto.request;
+package com.bitetogether.chat_service.dto.message;
 
 import com.bitetogether.chat_service.enums.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
