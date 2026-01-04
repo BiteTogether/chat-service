@@ -1,34 +1,33 @@
-package com.bitetogether.chat_service.service.inter;
+package com.bitetogether.chat_service.service;
 
 import com.bitetogether.chat_service.dto.request.RoomRequest;
 import com.bitetogether.chat_service.dto.response.RoomResponse;
-import com.bitetogether.common.dto.ApiResponse;
-import com.bitetogether.common.dto.ApiResponsePagination;
+import com.bitetogether.common.dto.ApiResponseDTO;
+import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import java.time.LocalDateTime;
 import java.util.List;
 import reactor.core.publisher.Mono;
 
 public interface RoomService {
-  // REST API methods (return ApiResponse wrapper)
-  Mono<ApiResponse<RoomResponse>> createRoom(RoomRequest request);
+  Mono<ApiResponseDTO<RoomResponse>> createRoom(RoomRequest request);
 
-  Mono<ApiResponse<RoomResponse>> getRoomById(String roomId);
+  Mono<ApiResponseDTO<RoomResponse>> getRoomById(String roomId);
 
-  Mono<ApiResponsePagination<RoomResponse>> getUserRooms(Long userId, int page, int size);
+  Mono<ApiResponsePaginationDTO<RoomResponse>> getUserRooms(int page, int size);
 
-  Mono<ApiResponse<RoomResponse>> updateRoom(String roomId, RoomRequest request);
+  Mono<ApiResponseDTO<RoomResponse>> updateRoom(String roomId, RoomRequest request);
 
-  Mono<ApiResponse<Void>> deleteRoom(String roomId);
+  Mono<ApiResponseDTO<Void>> deleteRoom(String roomId);
 
-  Mono<ApiResponse<RoomResponse>> addMembersToRoom(
+  Mono<ApiResponseDTO<RoomResponse>> addMembersToRoom(
       String roomId, List<Long> userIds, Long requesterId);
 
-  Mono<ApiResponse<RoomResponse>> removeMemberFromRoom(
+  Mono<ApiResponseDTO<RoomResponse>> removeMemberFromRoom(
       String roomId, Long userId, Long requesterId);
 
-  Mono<ApiResponse<RoomResponse>> promoteToAdmin(String roomId, Long userId, Long requesterId);
+  Mono<ApiResponseDTO<RoomResponse>> promoteToAdmin(String roomId, Long userId, Long requesterId);
 
-  Mono<ApiResponse<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2);
+  Mono<ApiResponseDTO<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2);
 
   // Direct methods for internal use (return raw data without wrapper)
   Mono<RoomResponse> createRoomDirect(RoomRequest request);

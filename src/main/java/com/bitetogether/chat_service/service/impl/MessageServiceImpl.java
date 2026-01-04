@@ -1,23 +1,24 @@
 package com.bitetogether.chat_service.service.impl;
 
+import com.bitetogether.chat_service.client.feign.UserClient;
 import com.bitetogether.chat_service.dto.SenderInfo;
 import com.bitetogether.chat_service.dto.request.MessageRequest;
 import com.bitetogether.chat_service.dto.response.MessageResponse;
+import com.bitetogether.chat_service.exception.ErrorCode;
 import com.bitetogether.chat_service.mapper.MessageMapper;
 import com.bitetogether.chat_service.mapper.SenderInfoMapper;
 import com.bitetogether.chat_service.model.Message;
 import com.bitetogether.chat_service.repository.MessageRepository;
-import com.bitetogether.chat_service.repository.httpclient.UserClient;
-import com.bitetogether.chat_service.service.inter.MessageService;
-import com.bitetogether.chat_service.service.inter.RoomService;
-import com.bitetogether.common.dto.ApiResponse;
-import com.bitetogether.common.dto.ApiResponsePagination;
+import com.bitetogether.chat_service.service.MessageService;
+import com.bitetogether.chat_service.service.RoomService;
+import com.bitetogether.common.dto.ApiResponseDTO;
+import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import com.bitetogether.common.enums.ApiResponseStatus;
+import com.bitetogether.common.exception.AppException;
 import com.bitetogether.common.util.ApiResponseUtil;
+import com.bitetogether.common.util.ReactiveUserContextUtils;
 import java.time.LocalDateTime;
 import java.util.List;
-
-import com.bitetogether.common.util.UserContextUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -39,20 +40,15 @@ public class MessageServiceImpl implements MessageService {
   MessageRepository messageRepository;
   MessageMapper messageMapper;
   RoomService roomService;
-    UserClient userClient;
-    SenderInfoMapper senderInfoMapper;
+  UserClient userClient;
+  SenderInfoMapper senderInfoMapper;
 
-  // Sink for real-time message streaming
   Sinks.Many<MessageResponse> messageSink = Sinks.many().multicast().onBackpressureBuffer();
 
-    // =========================================================
-  // =============== REST API METHODS ========================
-  // =========================================================
-
   @Override
-  public Mono<ApiResponse<MessageResponse>> sendMessage(MessageRequest request, String authorization) {
+  public Mono<ApiResponseDTO<MessageResponse>> sendMessage(MessageRequest request) {
     log.info("REST: Sending message to room: {}", request.getRoomId());
-    return sendMessageDirect(request, authorization)
+    return sendMessageDirect(request)
         .map(
             response ->
                 ApiResponseUtil.buildApiResponse(
@@ -69,10 +65,10 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Mono<ApiResponse<MessageResponse>> updateMessage(
-      String messageId, MessageRequest request, String authorization) {
+  public Mono<ApiResponseDTO<MessageResponse>> updateMessage(
+      String messageId, MessageRequest request) {
     log.info("REST: Updating message: {}", messageId);
-    return updateMessageDirect(messageId, request, authorization)
+    return updateMessageDirect(messageId, request)
         .map(
             response ->
                 ApiResponseUtil.buildApiResponse(
@@ -89,7 +85,7 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Mono<ApiResponse<Void>> deleteMessage(String messageId) {
+  public Mono<ApiResponseDTO<Void>> deleteMessage(String messageId) {
     log.info("REST: Deleting message: {}", messageId);
     return deleteMessageDirect(messageId)
         .then(
@@ -109,9 +105,9 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Mono<ApiResponse<MessageResponse>> getMessageById(String messageId, String authorization) {
+  public Mono<ApiResponseDTO<MessageResponse>> getMessageById(String messageId) {
     log.info("REST: Getting message by id: {}", messageId);
-    return getMessageByIdDirect(messageId, authorization)
+    return getMessageByIdDirect(messageId)
         .map(
             response ->
                 ApiResponseUtil.buildApiResponse(
@@ -126,8 +122,8 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Mono<ApiResponsePagination<MessageResponse>> getMessagesByRoomPaginated(
-      String roomId, int page, int size, String authorization) {
+  public Mono<ApiResponsePaginationDTO<MessageResponse>> getMessagesByRoomPaginated(
+      String roomId, int page, int size) {
     log.info(
         "REST: Getting paginated messages for room: {} (page: {}, size: {})", roomId, page, size);
 
@@ -138,7 +134,7 @@ public class MessageServiceImpl implements MessageService {
     Mono<List<MessageResponse>> contentMono =
         messageRepository
             .findByRoomId(roomId, pageable)
-            .flatMap(message -> enrichMessageWithSenderAndReplyContext(message, authorization))
+            .flatMap(this::enrichMessageWithSenderAndReplyContext)
             .collectList();
 
     return Mono.zip(totalMono, contentMono)
@@ -171,9 +167,9 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Flux<ApiResponse<MessageResponse>> streamMessages(String roomId, String authorization) {
+  public Flux<ApiResponseDTO<MessageResponse>> streamMessages(String roomId) {
     log.info("REST: Streaming messages for room: {}", roomId);
-    return streamMessagesDirect(roomId, authorization)
+    return streamMessagesDirect(roomId)
         .map(
             response ->
                 ApiResponseUtil.buildApiResponse(
@@ -190,9 +186,9 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Flux<ApiResponse<MessageResponse>> getMessageReplies(String messageId, String authorization) {
+  public Flux<ApiResponseDTO<MessageResponse>> getMessageReplies(String messageId) {
     log.info("REST: Getting replies for message: {}", messageId);
-    return getMessageRepliesDirect(messageId, authorization)
+    return getMessageRepliesDirect(messageId)
         .map(
             response ->
                 ApiResponseUtil.buildApiResponse(
@@ -208,21 +204,18 @@ public class MessageServiceImpl implements MessageService {
             });
   }
 
-  // =========================================================
-  // =============== DIRECT METHODS (for RSocket) ===========
-  // =========================================================
-
   @Override
-  public Mono<MessageResponse> sendMessageDirect(MessageRequest request, String authorization) {
+  public Mono<MessageResponse> sendMessageDirect(MessageRequest request) {
     log.info("Direct: Sending message to room: {}", request.getRoomId());
     Message message = messageMapper.toMessage(request);
 
-    Long currentUserId = UserContextUtils.getCurrentUserId();
-    message.setSenderId(currentUserId);
-
-    return messageRepository
-        .save(message)
-        .flatMap(savedMessage -> enrichMessageWithSenderAndReplyContext(savedMessage, authorization))
+    return ReactiveUserContextUtils.getUserIdOrError()
+        .flatMap(
+            currentUserId -> {
+              message.setSenderId(currentUserId);
+              return messageRepository.save(message);
+            })
+        .flatMap(this::enrichMessageWithSenderAndReplyContext)
         .flatMap(
             response -> {
               log.info("Message saved with id: {}", response.getId());
@@ -231,43 +224,41 @@ public class MessageServiceImpl implements MessageService {
                   .updateLastMessage(response.getRoomId(), response.getId(), LocalDateTime.now())
                   .thenReturn(response);
             })
-        .doOnNext(
-            response -> {
-              // Emit to sink for real-time streaming
-              messageSink.tryEmitNext(response);
-            })
+        .doOnNext(messageSink::tryEmitNext)
         .doOnError(e -> log.error("Error saving message: {}", e.getMessage()));
   }
 
   @Override
-  public Mono<MessageResponse> updateMessageDirect(String messageId, MessageRequest request, String authorization) {
+  public Mono<MessageResponse> updateMessageDirect(String messageId, MessageRequest request) {
     log.info("Direct: Updating message: {}", messageId);
 
-    Long currentUserId = UserContextUtils.getCurrentUserId();
-
-    return messageRepository
-        .findById(messageId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
+    return ReactiveUserContextUtils.getUserIdOrError()
         .flatMap(
-            existing -> {
-                if (!existing.getSenderId().equals(currentUserId)) {
-                    log.warn(
-                        "User {} attempted to update message {} owned by user {}",
-                        currentUserId,
-                        messageId,
-                        existing.getSenderId());
-                    return Mono.error(new RuntimeException("You are not authorized to update this message"));
-                }
-              messageMapper.updateMessageFromMessageRequest(request, existing);
-              return messageRepository.save(existing);
-            })
-        .flatMap(savedMessage -> enrichMessageWithSenderAndReplyContext(savedMessage, authorization))
-        .doOnNext(
-            response -> {
-              log.info("Message updated: {}", response.getId());
-              // Emit the updated message to stream subscribers
-              messageSink.tryEmitNext(response);
-            })
+            currentUserId ->
+                messageRepository
+                    .findById(messageId)
+                    .switchIfEmpty(Mono.error(new AppException(ErrorCode.MESSAGE_NOT_FOUND)))
+                    .flatMap(
+                        existing -> {
+                          if (!existing.getSenderId().equals(currentUserId)) {
+                            log.warn(
+                                "User {} attempted to update message {} owned by user {}",
+                                currentUserId,
+                                messageId,
+                                existing.getSenderId());
+                            return Mono.error(
+                                new AppException(ErrorCode.MESSAGE_UPDATE_UNAUTHORIZED));
+                          }
+                          messageMapper.updateMessageFromMessageRequest(request, existing);
+                          return messageRepository.save(existing);
+                        })
+                    .flatMap(this::enrichMessageWithSenderAndReplyContext)
+                    .doOnNext(
+                        response -> {
+                          log.info("Message updated: {}", response.getId());
+                          // Emit the updated message to stream subscribers
+                          messageSink.tryEmitNext(response);
+                        }))
         .doOnError(e -> log.error("Error updating message: {}", e.getMessage()));
   }
 
@@ -275,61 +266,64 @@ public class MessageServiceImpl implements MessageService {
   public Mono<Void> deleteMessageDirect(String messageId) {
     log.info("Direct: Deleting message: {}", messageId);
 
-    Long currentUserId = UserContextUtils.getCurrentUserId();
-
-    return messageRepository
-        .findById(messageId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
+    return ReactiveUserContextUtils.getUserIdOrError()
         .flatMap(
-            message -> {
-                if (!message.getSenderId().equals(currentUserId)) {
-                    log.warn(
-                        "User {} attempted to delete message {} owned by user {}",
-                        currentUserId,
-                        messageId,
-                        message.getSenderId());
-                    return Mono.error(new RuntimeException("You are not authorized to delete this message"));
-                }
-              MessageResponse deletionEvent = messageMapper.toMessageResponse(message);
-              deletionEvent.setDeleted(true);
+            currentUserId ->
+                messageRepository
+                    .findById(messageId)
+                    .switchIfEmpty(Mono.error(new AppException(ErrorCode.MESSAGE_NOT_FOUND)))
+                    .flatMap(
+                        message -> {
+                          if (!message.getSenderId().equals(currentUserId)) {
+                            log.warn(
+                                "User {} attempted to delete message {} owned by user {}",
+                                currentUserId,
+                                messageId,
+                                message.getSenderId());
+                            return Mono.error(
+                                new AppException(ErrorCode.MESSAGE_DELETE_UNAUTHORIZED));
+                          }
+                          MessageResponse deletionEvent = messageMapper.toMessageResponse(message);
+                          deletionEvent.setDeleted(true);
 
-              // Emit the deletion event to stream subscribers
-              messageSink.tryEmitNext(deletionEvent);
+                          // Emit the deletion event to stream subscribers
+                          messageSink.tryEmitNext(deletionEvent);
 
-              return messageRepository.delete(message);
-            })
-        .doOnSuccess(v -> log.info("Message deleted and deletion event emitted: {}", messageId))
+                          return messageRepository.delete(message);
+                        })
+                    .doOnSuccess(
+                        v -> log.info("Message deleted and deletion event emitted: {}", messageId)))
         .doOnError(e -> log.error("Error deleting message: {}", e.getMessage()));
   }
 
   @Override
-  public Mono<MessageResponse> getMessageByIdDirect(String messageId, String authorization) {
+  public Mono<MessageResponse> getMessageByIdDirect(String messageId) {
     log.info("Direct: Getting message by id: {}", messageId);
 
     return messageRepository
         .findById(messageId)
-        .switchIfEmpty(Mono.error(new RuntimeException("Message not found with id: " + messageId)))
-        .flatMap(message -> enrichMessageWithSenderAndReplyContext(message, authorization))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.MESSAGE_NOT_FOUND)))
+        .flatMap(this::enrichMessageWithSenderAndReplyContext)
         .doOnError(e -> log.error("Error getting message: {}", e.getMessage()));
   }
 
   @Override
-  public Flux<MessageResponse> getMessagesByRoomDirect(String roomId, String authorization) {
+  public Flux<MessageResponse> getMessagesByRoomDirect(String roomId) {
     log.info("Direct: Getting messages for room: {}", roomId);
 
     return messageRepository
         .findByRoomIdOrderByCreatedAtAsc(roomId)
-        .flatMap(message -> enrichMessageWithSenderAndReplyContext(message, authorization))
+        .flatMap(this::enrichMessageWithSenderAndReplyContext)
         .doOnComplete(() -> log.info("Finished getting messages for room: {}", roomId))
         .doOnError(e -> log.error("Error getting messages for room: {}", e.getMessage()));
   }
 
   @Override
-  public Flux<MessageResponse> streamMessagesDirect(String roomId, String authorization) {
+  public Flux<MessageResponse> streamMessagesDirect(String roomId) {
     log.info("Direct: Streaming messages for room: {}", roomId);
 
     // First, send existing messages
-    Flux<MessageResponse> existingMessages = getMessagesByRoomDirect(roomId, authorization);
+    Flux<MessageResponse> existingMessages = getMessagesByRoomDirect(roomId);
 
     // Then, stream new messages from sink filtered by roomId
     Flux<MessageResponse> newMessages =
@@ -343,46 +337,54 @@ public class MessageServiceImpl implements MessageService {
   }
 
   @Override
-  public Flux<MessageResponse> getMessageRepliesDirect(String messageId, String authorization) {
+  public Flux<MessageResponse> getMessageRepliesDirect(String messageId) {
     log.info("Direct: Getting replies for message: {}", messageId);
 
     return messageRepository
         .findByReplyToMessageId(messageId)
-        .flatMap(message -> enrichMessageWithSenderAndReplyContext(message, authorization))
+        .flatMap(this::enrichMessageWithSenderAndReplyContext)
         .doOnComplete(() -> log.info("Finished getting replies for message: {}", messageId))
         .doOnError(e -> log.error("Error getting replies: {}", e.getMessage()));
   }
 
-    private Mono<MessageResponse> enrichMessageWithSenderAndReplyContext(Message message, String authorization) {
-        MessageResponse response = messageMapper.toMessageResponse(message);
+  private Mono<MessageResponse> enrichMessageWithSenderAndReplyContext(Message message) {
+    MessageResponse response = messageMapper.toMessageResponse(message);
 
-        // Use reactive WebClient with explicit authorization header
-        Mono<SenderInfo> senderInfoMono = userClient.getUserById(message.getSenderId(), authorization)
-                .map(senderInfoMapper::senderInfoFromUserDto)
-                .doOnNext(response::setSender)
-                .onErrorResume(e -> {
-                    log.warn("Could not fetch sender info for user {}: {}",
-                            message.getSenderId(), e.getMessage());
-                    return Mono.empty();
+    // Use reactive WebClient with bearer token forwarding from security context
+    Mono<SenderInfo> senderInfoMono =
+        userClient
+            .getUserById(message.getSenderId())
+            .map(senderInfoMapper::senderInfoFromUserDto)
+            .doOnNext(response::setSender)
+            .onErrorResume(
+                e -> {
+                  log.warn(
+                      "Could not fetch sender info for user {}: {}",
+                      message.getSenderId(),
+                      e.getMessage());
+                  return Mono.empty();
                 });
 
-        return senderInfoMono
-                .then(enrichReplyContext(message, response)); // reuse your reply-context logic
-    }
+    return senderInfoMono.then(
+        enrichReplyContext(message, response)); // reuse your reply-context logic
+  }
 
-    private Mono<MessageResponse> enrichReplyContext(Message message, MessageResponse response) {
-        if (message.getReplyToMessageId() != null && !message.getReplyToMessageId().isEmpty()) {
-            return messageRepository
-                    .findById(message.getReplyToMessageId())
-                    .map(messageMapper::toMessageResponse)
-                    .doOnNext(response::setReplyTo)
-                    .thenReturn(response)
-                    .onErrorResume(e -> {
-                        log.warn("Could not fetch reply context for message {}: {}",
-                                message.getId(), e.getMessage());
-                        return Mono.just(response);
-                    });
-        }
-        return Mono.just(response);
+  private Mono<MessageResponse> enrichReplyContext(Message message, MessageResponse response) {
+    if (message.getReplyToMessageId() != null && !message.getReplyToMessageId().isEmpty()) {
+      return messageRepository
+          .findById(message.getReplyToMessageId())
+          .map(messageMapper::toMessageResponse)
+          .doOnNext(response::setReplyTo)
+          .thenReturn(response)
+          .onErrorResume(
+              e -> {
+                log.warn(
+                    "Could not fetch reply context for message {}: {}",
+                    message.getId(),
+                    e.getMessage());
+                return Mono.just(response);
+              });
     }
+    return Mono.just(response);
+  }
 }

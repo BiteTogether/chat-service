@@ -3,9 +3,11 @@ package com.bitetogether.chat_service.dto.request;
 import com.bitetogether.chat_service.enums.RoomType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @Schema(description = "Request payload for creating or updating a chat room")
 public class RoomRequest {
 
@@ -21,18 +23,20 @@ public class RoomRequest {
 
   @Schema(
       description = "List of user IDs who are members of this room",
-      example = "[123, 456, 789]",
-      required = true)
+      example = "[123, 456, 789]")
   private List<Long> userIds;
 
   @Schema(
       description = "Type of chat room (DIRECT for 1-on-1, GROUP for multiple users)",
-      example = "GROUP",
-      required = true)
+      example = "GROUP")
   private RoomType roomType;
 
   @Schema(
-      description = "List of user IDs who are admins of this room (only for GROUP rooms)",
-      example = "[123]")
+      description =
+          "List of user IDs who are admins of this room. "
+              + "NOTE: This field is auto-assigned - the room creator will automatically become admin. "
+              + "You do NOT need to provide this field when creating a room.",
+      example = "[123]",
+      accessMode = Schema.AccessMode.READ_ONLY)
   private List<Long> adminIds;
 }

@@ -14,5 +14,5 @@ public enum MessageType {
   FILE,
 
   @Schema(description = "Emoji or reaction message")
-  EMOJI
+  EMOJI,
 }
