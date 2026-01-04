@@ -1,7 +1,7 @@
 package com.bitetogether.chat_service.mapper;
 
-import com.bitetogether.chat_service.dto.request.ReactionRequest;
-import com.bitetogether.chat_service.dto.response.ReactionResponse;
+import com.bitetogether.chat_service.dto.reaction.ReactionRequest;
+import com.bitetogether.chat_service.dto.reaction.ReactionResponse;
 import com.bitetogether.chat_service.model.Reaction;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;

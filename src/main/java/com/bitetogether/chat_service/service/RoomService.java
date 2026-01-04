@@ -1,7 +1,8 @@
 package com.bitetogether.chat_service.service;
 
+import com.bitetogether.chat_service.dto.request.RoomDetailResponse;
 import com.bitetogether.chat_service.dto.request.RoomRequest;
-import com.bitetogether.chat_service.dto.response.RoomResponse;
+import com.bitetogether.chat_service.dto.request.RoomResponse;
 import com.bitetogether.common.dto.ApiResponseDTO;
 import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import java.time.LocalDateTime;
@@ -11,9 +12,9 @@ import reactor.core.publisher.Mono;
 public interface RoomService {
   Mono<ApiResponseDTO<RoomResponse>> createRoom(RoomRequest request);
 
-  Mono<ApiResponseDTO<RoomResponse>> getRoomById(String roomId);
+  Mono<ApiResponseDTO<RoomDetailResponse>> getRoomById(String roomId);
 
-  Mono<ApiResponsePaginationDTO<RoomResponse>> getUserRooms(int page, int size);
+  Mono<ApiResponsePaginationDTO<RoomDetailResponse>> getUserRooms(int page, int size);
 
   Mono<ApiResponseDTO<RoomResponse>> updateRoom(String roomId, RoomRequest request);
 
@@ -32,7 +33,7 @@ public interface RoomService {
   // Direct methods for internal use (return raw data without wrapper)
   Mono<RoomResponse> createRoomDirect(RoomRequest request);
 
-  Mono<RoomResponse> getRoomByIdDirect(String roomId);
+  Mono<RoomDetailResponse> getRoomByIdDirect(String roomId);
 
   Mono<RoomResponse> updateRoomDirect(String roomId, RoomRequest request);
 

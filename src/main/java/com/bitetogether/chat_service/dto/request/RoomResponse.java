@@ -1,5 +1,6 @@
-package com.bitetogether.chat_service.dto.response;
+package com.bitetogether.chat_service.dto.request;
 
+import com.bitetogether.chat_service.dto.base.BaseResponse;
 import com.bitetogether.chat_service.enums.RoomType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;

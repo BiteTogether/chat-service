@@ -1,9 +1,9 @@
 package com.bitetogether.chat_service.service.impl;
 
-import com.bitetogether.chat_service.client.feign.UserClient;
-import com.bitetogether.chat_service.dto.SenderInfo;
-import com.bitetogether.chat_service.dto.request.MessageRequest;
-import com.bitetogether.chat_service.dto.response.MessageResponse;
+import com.bitetogether.chat_service.client.webclient.UserClient;
+import com.bitetogether.chat_service.dto.message.MessageRequest;
+import com.bitetogether.chat_service.dto.message.MessageResponse;
+import com.bitetogether.chat_service.dto.user.SenderInfo;
 import com.bitetogether.chat_service.exception.ErrorCode;
 import com.bitetogether.chat_service.mapper.MessageMapper;
 import com.bitetogether.chat_service.mapper.SenderInfoMapper;

@@ -3,8 +3,9 @@ package com.bitetogether.chat_service.controller;
 import static com.bitetogether.common.util.Constants.DEFAULT_PAGE_NUMBER;
 import static com.bitetogether.common.util.Constants.DEFAULT_PAGE_SIZE;
 
+import com.bitetogether.chat_service.dto.request.RoomDetailResponse;
 import com.bitetogether.chat_service.dto.request.RoomRequest;
-import com.bitetogether.chat_service.dto.response.RoomResponse;
+import com.bitetogether.chat_service.dto.request.RoomResponse;
 import com.bitetogether.chat_service.service.RoomService;
 import com.bitetogether.common.dto.ApiResponseDTO;
 import com.bitetogether.common.dto.ApiResponsePaginationDTO;
@@ -77,7 +78,7 @@ public class RoomController {
         @ApiResponse(responseCode = "404", description = "Room not found"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> getRoomById(
+  public Mono<ResponseEntity<ApiResponseDTO<RoomDetailResponse>>> getRoomById(
       @Parameter(
               description = "ID of the room to retrieve",
               required = true,
@@ -104,7 +105,7 @@ public class RoomController {
             description = "Invalid user ID or pagination parameters"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public Mono<ResponseEntity<ApiResponsePaginationDTO<RoomResponse>>> getUserRoomsPaginated(
+  public Mono<ResponseEntity<ApiResponsePaginationDTO<RoomDetailResponse>>> getUserRoomsPaginated(
       @Parameter(description = "Page number (0-indexed)", example = "0")
           @RequestParam(defaultValue = DEFAULT_PAGE_NUMBER)
           int page,

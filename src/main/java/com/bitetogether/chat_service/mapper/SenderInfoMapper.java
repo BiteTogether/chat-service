@@ -1,7 +1,7 @@
 package com.bitetogether.chat_service.mapper;
 
-import com.bitetogether.chat_service.dto.SenderInfo;
-import com.bitetogether.chat_service.dto.UserDTO;
+import com.bitetogether.chat_service.dto.user.SenderInfo;
+import com.bitetogether.chat_service.dto.user.UserDTO;
 import org.springframework.stereotype.Component;
 
 @Component

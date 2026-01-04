@@ -6,15 +6,38 @@ import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.exception.AppException;
 import java.net.ConnectException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Slf4j
-public final class FeignClientExtension {
+public final class WebClientExtension {
 
-  private FeignClientExtension() {
+  private WebClientExtension() {
     throw new UnsupportedOperationException("Utility class");
+  }
+
+  public static <T> Mono<T> executeRequest(
+      WebClient.RequestHeadersSpec<?> requestSpec,
+      ParameterizedTypeReference<ApiResponseDTO<T>> typeReference,
+      Long id,
+      String entityType,
+      int timeoutSeconds) {
+    return requestSpec
+        .retrieve()
+        .onStatus(
+            HttpStatusCode::is4xxClientError,
+            response -> handleClientError(id, response, entityType))
+        .onStatus(
+            HttpStatusCode::is5xxServerError,
+            response -> handleServerError(id, response, entityType))
+        .bodyToMono(typeReference)
+        .flatMap(apiResponse -> extractData(apiResponse, entityType))
+        .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
+        .onErrorResume(throwable -> handleError(id, throwable, entityType));
   }
 
   public static Mono<Throwable> handleClientError(

@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.dto;
+package com.bitetogether.chat_service.dto.user;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;

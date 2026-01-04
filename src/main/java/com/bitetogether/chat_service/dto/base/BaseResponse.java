@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.dto.response;
+package com.bitetogether.chat_service.dto.base;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
