@@ -176,9 +176,9 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<ApiResponseDTO<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2) {
-    log.info("REST: Getting or creating direct room between {} and {}", userId1, userId2);
-    return getOrCreateDirectRoomDirect(userId1, userId2)
+  public Mono<ApiResponseDTO<RoomResponse>> getOrCreateDirectRoom(Long otherUserId) {
+    log.info("REST: Getting or creating direct room with user: {}", otherUserId);
+    return getOrCreateDirectRoomDirect(otherUserId)
         .map(
             response ->
                 ApiResponseUtil.buildApiResponse(
@@ -465,32 +465,51 @@ public class RoomServiceImpl implements RoomService {
   }
 
   @Override
-  public Mono<RoomResponse> getOrCreateDirectRoomDirect(Long userId1, Long userId2) {
-    log.info("Direct: Getting or creating direct room between {} and {}", userId1, userId2);
+  public Mono<RoomResponse> getOrCreateDirectRoomDirect(Long otherUserId) {
+    log.info("Direct: Getting or creating direct room with user: {}", otherUserId);
 
-    List<Long> userIds = new ArrayList<>();
-    userIds.add(userId1);
-    userIds.add(userId2);
-    Collections.sort(userIds); // Sort to ensure consistent ordering
+    return ReactiveUserContextUtils.getUserIdOrError()
+        .flatMap(
+            currentUserId -> {
+              log.info("Current user: {}, other user: {}", currentUserId, otherUserId);
 
-    // Try to find existing direct room
-    return roomRepository
-        .findByRoomTypeAndUserIdsContaining(RoomType.DIRECT, userId1)
-        .filter(room -> room.getUserIds() != null && room.getUserIds().contains(userId2))
-        .next()
-        .switchIfEmpty(
-            // Create new direct room if not found
-            Mono.defer(
-                () -> {
-                  RoomRequest request = new RoomRequest();
-                  request.setRoomType(RoomType.DIRECT);
-                  request.setUserIds(userIds);
-                  Room room = roomMapper.toRoom(request);
-                  return roomRepository.save(room);
-                }))
-        .map(roomMapper::toRoomResponse) // Convert Room to RoomResponse after getting/creating
-        .doOnNext(response -> log.info("Direct room retrieved/created: {}", response.getId()))
-        .doOnError(e -> log.error("Error getting/creating direct room: {}", e.getMessage()));
+              List<Long> userIds = new ArrayList<>();
+              userIds.add(currentUserId);
+              userIds.add(otherUserId);
+              Collections.sort(userIds);
+
+              // Try to find existing direct room
+              return roomRepository
+                  .findByRoomTypeAndUserIdsContaining(RoomType.DIRECT, currentUserId)
+                  .filter(
+                      room -> room.getUserIds() != null && room.getUserIds().contains(otherUserId))
+                  .next()
+                  .switchIfEmpty(
+                      Mono.defer(
+                          () -> {
+                            RoomRequest request = new RoomRequest();
+                            request.setRoomType(RoomType.DIRECT);
+                            request.setUserIds(userIds);
+                            Room room = roomMapper.toRoom(request);
+                            return roomRepository.save(room);
+                          }))
+                  .flatMap(
+                      room ->
+                          // Fetch other user's details and enrich the response
+                          userClient
+                              .getUserById(otherUserId)
+                              .map(
+                                  userDTO -> {
+                                    RoomResponse response = roomMapper.toRoomResponse(room);
+                                    response.setName(userDTO.getUsername());
+                                    response.setAvatar(userDTO.getAvatar());
+                                    return response;
+                                  }))
+                  .doOnNext(
+                      response -> log.info("Direct room retrieved/created: {}", response.getId()))
+                  .doOnError(
+                      e -> log.error("Error getting/creating direct room: {}", e.getMessage()));
+            });
   }
 
   @Override
