@@ -306,12 +306,9 @@ public class RoomController {
         @ApiResponse(responseCode = "500", description = "Internal server error")
       })
   public Mono<ResponseEntity<ApiResponseDTO<RoomResponse>>> getOrCreateDirectRoom(
-      @Parameter(description = "ID of the first user", required = true, example = "123")
+      @Parameter(description = "ID of the other user", required = true, example = "123")
           @RequestParam
-          Long userId1,
-      @Parameter(description = "ID of the second user", required = true, example = "456")
-          @RequestParam
-          Long userId2) {
-    return roomService.getOrCreateDirectRoom(userId1, userId2).map(ResponseEntity::ok);
+          Long otherUserId) {
+    return roomService.getOrCreateDirectRoom(otherUserId).map(ResponseEntity::ok);
   }
 }

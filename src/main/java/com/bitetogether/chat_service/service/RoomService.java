@@ -28,7 +28,7 @@ public interface RoomService {
 
   Mono<ApiResponseDTO<RoomResponse>> promoteToAdmin(String roomId, Long userId, Long requesterId);
 
-  Mono<ApiResponseDTO<RoomResponse>> getOrCreateDirectRoom(Long userId1, Long userId2);
+  Mono<ApiResponseDTO<RoomResponse>> getOrCreateDirectRoom(Long otherUserId);
 
   // Direct methods for internal use (return raw data without wrapper)
   Mono<RoomResponse> createRoomDirect(RoomRequest request);
@@ -45,7 +45,7 @@ public interface RoomService {
 
   Mono<RoomResponse> promoteToAdminDirect(String roomId, Long userId, Long requesterId);
 
-  Mono<RoomResponse> getOrCreateDirectRoomDirect(Long userId1, Long userId2);
+  Mono<RoomResponse> getOrCreateDirectRoomDirect(Long otherUserId);
 
   Mono<Void> updateLastMessage(String roomId, String messageId, LocalDateTime timestamp);
 }

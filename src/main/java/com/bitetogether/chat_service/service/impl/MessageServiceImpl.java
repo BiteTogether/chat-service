@@ -127,7 +127,7 @@ public class MessageServiceImpl implements MessageService {
     log.info(
         "REST: Getting paginated messages for room: {} (page: {}, size: {})", roomId, page, size);
 
-    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
+    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
     // Get total count and content in parallel
     Mono<Long> totalMono = messageRepository.countByRoomId(roomId);
