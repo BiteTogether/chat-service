@@ -29,6 +29,11 @@ public enum ErrorCode implements BaseErrorCode {
   ROOM_PROMOTE_ADMIN_UNAUTHORIZED(
       ApiResponseStatus.FORBIDDEN, "Only admins can promote other users"),
   ROOM_USER_NOT_MEMBER(ApiResponseStatus.BAD_REQUEST, "User must be a member of the room"),
+  INVALID_ROOM_TYPE(ApiResponseStatus.BAD_REQUEST, "Invalid room type for this operation"),
+  INSUFFICIENT_PERMISSIONS(ApiResponseStatus.FORBIDDEN, "You do not have permission to perform this action"),
+
+  USER_NOT_IN_ROOM(ApiResponseStatus.BAD_REQUEST, "User is not a participant in this room"),
+  ROOM_ADD_USER_UNAUTHORIZED(ApiResponseStatus.FORBIDDEN, "Only admins can add users to this room"),
 
   USER_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "User not found"),
   USER_SERVICE_UNAUTHORIZED(ApiResponseStatus.UNAUTHORIZED, "Unauthorized access to user service"),
