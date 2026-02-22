@@ -1,0 +1,5 @@
+chat:
+  crypto:
+    key: ${CRYPTO_KEY}
+    algorithm: AES
+    transformation: AES/CBC/PKCS5Padding

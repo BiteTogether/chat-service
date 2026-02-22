@@ -14,5 +14,5 @@ spring:
       - database
       - webclient
       - kafka
-      - rsocket
       - redis
+      - crypto
