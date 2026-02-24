@@ -19,6 +19,10 @@ public interface ConversationMapper {
   @Mapping(target = "participants", ignore = true)
   @Mapping(target = "unreadCount", ignore = true)
   @Mapping(target = "latestMessage", ignore = true)
+  @Mapping(target = "createdAt", source = "createdAt")
+  @Mapping(target = "updatedAt", source = "updatedAt")
+  @Mapping(target = "createdBy", source = "createdBy")
+  @Mapping(target = "updatedBy", source = "updatedBy")
   ConversationDTO toDTO(Conversation conversation);
 
   default ConversationDTO toDTO(
@@ -35,6 +39,10 @@ public interface ConversationMapper {
 
   @Mapping(target = "username", ignore = true)
   @Mapping(target = "avatarUrl", ignore = true)
+  @Mapping(target = "createdAt", source = "createdAt")
+  @Mapping(target = "updatedAt", source = "updatedAt")
+  @Mapping(target = "createdBy", source = "createdBy")
+  @Mapping(target = "updatedBy", source = "updatedBy")
   ParticipantDTO toParticipantDTO(Participant participant);
 
   @Mapping(target = "id", ignore = true)

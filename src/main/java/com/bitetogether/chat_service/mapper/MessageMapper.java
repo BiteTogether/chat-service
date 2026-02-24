@@ -10,6 +10,10 @@ public interface MessageMapper {
 
   @Mapping(target = "content", ignore = true)
   @Mapping(target = "seq", source = "sequence")
+  @Mapping(target = "createdAt", source = "createdAt")
+  @Mapping(target = "updatedAt", source = "updatedAt")
+  @Mapping(target = "createdBy", source = "createdBy")
+  @Mapping(target = "updatedBy", source = "updatedBy")
   ChatMessageDTO toChatMessageDTO(Message message);
 
   default ChatMessageDTO toChatMessageDTO(Message message, String decryptedContent) {

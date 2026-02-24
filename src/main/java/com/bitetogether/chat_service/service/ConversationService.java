@@ -1,9 +1,6 @@
 package com.bitetogether.chat_service.service;
 
-import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
-import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
-import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
-import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
+import com.bitetogether.chat_service.dto.conversation.*;
 import com.bitetogether.chat_service.dto.message.ChatMessageDTO;
 import com.bitetogether.chat_service.enums.ConversationType;
 import com.bitetogether.chat_service.enums.Role;
@@ -15,18 +12,23 @@ import com.bitetogether.chat_service.model.Participant;
 import com.bitetogether.chat_service.repository.ConversationRepository;
 import com.bitetogether.chat_service.repository.MessageRepository;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
+import com.bitetogether.chat_service.util.PaginationUtils;
 import com.bitetogether.common.dto.ApiResponseDTO;
 import com.bitetogether.common.enums.ApiResponseStatus;
 import com.bitetogether.common.exception.AppException;
 import com.bitetogether.common.util.ApiResponseUtil;
 import com.bitetogether.common.util.ReactiveUserContextUtils;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -158,18 +160,111 @@ public class ConversationService {
   }
 
   /**
-   * Get all conversations for the current user.
+   * Get all conversations for the current user with cursor-based pagination.
+   * Conversations are sorted by last message time (most recent first).
+   *
+   * @param cursor the cursor (ISO datetime string) to start from (exclusive), null for first page
+   * @param limit  the number of conversations to fetch (default 20, max 100)
+   * @return paginated conversations response
    */
-  public Mono<ApiResponseDTO<List<ConversationDTO>>> getMyConversations() {
+  public Mono<ApiResponseDTO<ConversationPageResponse>> getMyConversations(String cursor, Integer limit) {
     return ReactiveUserContextUtils.getUserIdOrError("User ID not found in context")
-        .flatMapMany(participantRepository::findByUserId)
-        .flatMap(participant -> buildConversationDTO(participant.getConversationId(), participant.getUserId()))
-        .collectList()
-        .map(conversations -> ApiResponseUtil.buildApiResponse(
-            ApiResponseStatus.SUCCESS,
-            "Conversations retrieved successfully",
-            conversations));
+        .flatMap(userId -> fetchUserConversations(userId, cursor, limit));
   }
+
+  private Mono<ApiResponseDTO<ConversationPageResponse>> fetchUserConversations(
+      Long userId, String cursor, Integer limit) {
+    int pageSize = PaginationUtils.normalizePageSize(limit);
+    int fetchSize = pageSize + 1; // Fetch one extra to determine hasMore
+    PageRequest pageable = PageRequest.of(0, fetchSize);
+
+    // First, get all conversation IDs for this user
+    return participantRepository.findByUserId(userId)
+        .map(Participant::getConversationId)
+        .collect(Collectors.toSet())
+        .flatMap(conversationIds -> {
+          if (conversationIds.isEmpty()) {
+            return Mono.just(buildEmptyPageResponse());
+          }
+          return fetchConversationsSortedByLastMessageTime(conversationIds, cursor, pageable, userId, limit);
+        });
+  }
+
+  private Mono<ApiResponseDTO<ConversationPageResponse>> fetchConversationsSortedByLastMessageTime(
+      Set<String> conversationIds, String cursor, PageRequest pageable, Long userId, Integer limit) {
+
+    Flux<Conversation> conversationFlux;
+    if (cursor == null) {
+      conversationFlux = conversationRepository.findByIdInOrderByLastMessageTimeDesc(conversationIds, pageable);
+    } else {
+      LocalDateTime cursorTime = parseCursor(cursor);
+      conversationFlux = conversationRepository.findByIdInAndLastMessageTimeLessThanOrderByLastMessageTimeDesc(
+          conversationIds, cursorTime, pageable);
+    }
+
+    return conversationFlux
+        .flatMap(conversation -> buildConversationDTO(conversation.getId(), userId)
+            .map(dto -> new ConversationWithLastMessageTime(dto, conversation.getLastMessageTime())))
+        .collectList()
+        .map(results -> buildConversationPageResponse(results, limit));
+  }
+
+  private LocalDateTime parseCursor(String cursor) {
+    return LocalDateTime.parse(cursor, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+  }
+
+  private String formatCursor(LocalDateTime dateTime) {
+    return dateTime != null ? dateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null;
+  }
+
+  private ApiResponseDTO<ConversationPageResponse> buildEmptyPageResponse() {
+    ConversationPageResponse response = ConversationPageResponse.builder()
+        .conversations(List.of())
+        .nextCursor(null)
+        .hasMore(false)
+        .size(0)
+        .build();
+
+    return ApiResponseUtil.buildApiResponse(
+        ApiResponseStatus.SUCCESS,
+        "Conversations retrieved successfully",
+        response);
+  }
+
+  private ApiResponseDTO<ConversationPageResponse> buildConversationPageResponse(
+      List<ConversationWithLastMessageTime> results, Integer requestedLimit) {
+    int pageSize = PaginationUtils.normalizePageSize(requestedLimit);
+    boolean hasMore = results.size() > pageSize;
+
+    // Remove the extra item if we fetched more than requested
+    List<ConversationWithLastMessageTime> resultItems = hasMore
+        ? results.subList(0, pageSize)
+        : results;
+
+    List<ConversationDTO> conversations = resultItems.stream()
+        .map(ConversationWithLastMessageTime::conversation)
+        .toList();
+
+    String nextCursor = resultItems.isEmpty() ? null
+        : formatCursor(resultItems.getLast().lastMessageTime());
+
+    ConversationPageResponse response = ConversationPageResponse.builder()
+        .conversations(conversations)
+        .nextCursor(nextCursor)
+        .hasMore(hasMore)
+        .size(conversations.size())
+        .build();
+
+    return ApiResponseUtil.buildApiResponse(
+        ApiResponseStatus.SUCCESS,
+        "Conversations retrieved successfully",
+        response);
+  }
+
+  /**
+   * Helper record to hold conversation DTO with its lastMessageTime for cursor extraction.
+   */
+  private record ConversationWithLastMessageTime(ConversationDTO conversation, LocalDateTime lastMessageTime) {}
 
   private Mono<ConversationDTO> buildConversationDTO(String conversationId, Long currentUserId) {
     return conversationRepository.findById(conversationId)
@@ -335,29 +430,6 @@ public class ConversationService {
             ApiResponseStatus.SUCCESS,
             "Participant role updated successfully",
             dto));
-  }
-
-  /**
-   * Mark messages as read up to a certain sequence.
-   */
-  @Transactional
-  public Mono<ApiResponseDTO<Void>> markAsRead(String conversationId, Long lastReadSequence) {
-    return ReactiveUserContextUtils.getUserIdOrError("User ID not found in context")
-        .flatMap(currentUserId ->
-            participantRepository.findByConversationIdAndUserId(conversationId, currentUserId))
-        .switchIfEmpty(Mono.error(new AppException(ErrorCode.NOT_A_PARTICIPANT)))
-        .flatMap(participant -> {
-          if (lastReadSequence > participant.getLastReadMessageSequence()) {
-            participant.setLastReadMessageSequence(lastReadSequence);
-            return participantRepository.save(participant);
-          }
-          return Mono.just(participant);
-        })
-        .then(Mono.fromCallable(() ->
-            ApiResponseUtil.<Void>buildApiResponse(
-                ApiResponseStatus.SUCCESS,
-                "Messages marked as read",
-                null)));
   }
 
   // ==================== DELETE ====================

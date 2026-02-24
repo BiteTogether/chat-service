@@ -1,9 +1,6 @@
 package com.bitetogether.chat_service.controller;
 
-import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
-import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
-import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
-import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
+import com.bitetogether.chat_service.dto.conversation.*;
 import com.bitetogether.chat_service.enums.Role;
 import com.bitetogether.chat_service.service.ConversationService;
 import com.bitetogether.common.dto.ApiResponseDTO;
@@ -15,7 +12,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -108,13 +104,16 @@ public class ConversationController {
   @GetMapping
   @Operation(
       summary = "Get all conversations for current user",
-      description = "Retrieves all conversations that the current user is a participant of, including unread counts.")
+      description =
+          "Retrieves conversations that the current user is a participant of with cursor-based pagination. "
+              + "Conversations are sorted by last message time (most recent first). "
+              + "Use the 'cursor' parameter (ISO datetime) to fetch older conversations.")
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
             description = "Conversations retrieved successfully",
-            content = @Content(schema = @Schema(implementation = ConversationDTO.class))),
+            content = @Content(schema = @Schema(implementation = ConversationPageResponse.class))),
         @ApiResponse(
             responseCode = "401",
             description = "Unauthorized - User not authenticated",
@@ -124,8 +123,18 @@ public class ConversationController {
             description = "Internal server error",
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
-  public Mono<ResponseEntity<ApiResponseDTO<List<ConversationDTO>>>> getMyConversations() {
-    return conversationService.getMyConversations().map(ResponseEntity::ok);
+  public Mono<ResponseEntity<ApiResponseDTO<ConversationPageResponse>>> getMyConversations(
+      @Parameter(
+              description = "Cursor (ISO datetime) to start from. Omit for first page.",
+              example = "2026-02-24T10:30:00")
+          @RequestParam(required = false)
+          String cursor,
+      @Parameter(
+              description = "Number of conversations to fetch (default 20, max 100)",
+              example = "20")
+          @RequestParam(required = false)
+          Integer limit) {
+    return conversationService.getMyConversations(cursor, limit).map(ResponseEntity::ok);
   }
 
   // ==================== UPDATE ====================
@@ -293,45 +302,6 @@ public class ConversationController {
     return conversationService
         .updateParticipantRole(conversationId, userId, role)
         .map(ResponseEntity::ok);
-  }
-
-  // ==================== READ RECEIPTS ====================
-
-  @PostMapping("/{conversationId}/read")
-  @Operation(
-      summary = "Mark messages as read",
-      description =
-          "Marks all messages up to the specified sequence number as read for the current user.")
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Messages marked as read successfully",
-            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
-        @ApiResponse(
-            responseCode = "403",
-            description = "User is not a participant of the conversation",
-            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Conversation not found",
-            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
-        @ApiResponse(
-            responseCode = "500",
-            description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
-      })
-  public Mono<ResponseEntity<ApiResponseDTO<Void>>> markAsRead(
-      @Parameter(description = "Conversation ID", required = true, example = "conv_abc123")
-          @PathVariable
-          String conversationId,
-      @Parameter(
-              description = "Last read message sequence number",
-              required = true,
-              example = "42")
-          @RequestParam
-          Long lastReadSequence) {
-    return conversationService.markAsRead(conversationId, lastReadSequence).map(ResponseEntity::ok);
   }
 
   // ==================== DELETE ====================

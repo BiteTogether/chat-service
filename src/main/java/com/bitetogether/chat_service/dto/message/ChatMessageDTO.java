@@ -3,11 +3,17 @@ package com.bitetogether.chat_service.dto.message;
 import com.bitetogether.chat_service.dto.base.BaseResponse;
 import com.bitetogether.chat_service.enums.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Data
-@Builder
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 @Schema(description = "Chat message DTO")
 public class ChatMessageDTO extends BaseResponse {
 
