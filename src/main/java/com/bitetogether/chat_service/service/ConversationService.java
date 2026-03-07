@@ -9,6 +9,7 @@ import com.bitetogether.chat_service.mapper.ConversationMapper;
 import com.bitetogether.chat_service.mapper.MessageMapper;
 import com.bitetogether.chat_service.model.Conversation;
 import com.bitetogether.chat_service.model.Participant;
+import com.bitetogether.chat_service.repository.ChatUserSnapshotRepository;
 import com.bitetogether.chat_service.repository.ConversationRepository;
 import com.bitetogether.chat_service.repository.MessageRepository;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
@@ -43,6 +44,7 @@ public class ConversationService {
   ConversationRepository conversationRepository;
   ParticipantRepository participantRepository;
   MessageRepository messageRepository;
+  ChatUserSnapshotRepository chatUserSnapshotRepository;
   ConversationMapper conversationMapper;
   MessageMapper messageMapper;
   CryptoService cryptoService;
@@ -294,9 +296,21 @@ public class ConversationService {
 
   private Mono<List<ParticipantDTO>> getParticipantDTOs(String conversationId) {
     return participantRepository.findByConversationId(conversationId)
-        .map(conversationMapper::toParticipantDTO)
-        // TODO: Enrich with user info from UserClient
+        .flatMap(this::enrichParticipantWithUserSnapshot)
         .collectList();
+  }
+
+  private Mono<ParticipantDTO> enrichParticipantWithUserSnapshot(Participant participant) {
+    ParticipantDTO dto = conversationMapper.toParticipantDTO(participant);
+
+    // Fetch user snapshot by userId and enrich the DTO
+    return chatUserSnapshotRepository.findById(participant.getUserId())
+        .map(snapshot -> {
+          dto.setUsername(snapshot.getUsername());
+          dto.setAvatarUrl(snapshot.getAvatar());
+          return dto;
+        })
+        .defaultIfEmpty(dto); // Return DTO without user info if snapshot not found
   }
 
   private Mono<Long> calculateUnreadCount(String conversationId, Long userId) {

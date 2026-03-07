@@ -2,12 +2,14 @@ package com.bitetogether.chat_service.model;
 
 import com.bitetogether.chat_service.enums.Role;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 @Document(collection = "participants")
 @Data
+@EqualsAndHashCode(callSuper = true)
 public class Participant extends BaseModel {
   @Id private String id;
 
