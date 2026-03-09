@@ -18,9 +18,6 @@ public class ChatUserSnapshot extends BaseModel {
   @Field("username")
   private String username;
 
-  @Field("email")
-  private String email;
-
   @Field("full_name")
   private String fullName;
 

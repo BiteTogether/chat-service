@@ -66,7 +66,6 @@ public class UserEventListenerService {
     ChatUserSnapshot snapshot = new ChatUserSnapshot();
     snapshot.setUserId(event.getUserId());
     snapshot.setUsername(event.getUsername());
-    snapshot.setEmail(event.getEmail());
     snapshot.setFullName(event.getFullName());
     snapshot.setPhoneNumber(event.getPhoneNumber());
     snapshot.setAvatar(event.getAvatar());
@@ -91,7 +90,6 @@ public class UserEventListenerService {
               // Only update if the event version is newer
               if (event.getVersion() > existingSnapshot.getVersion()) {
                 existingSnapshot.setUsername(event.getUsername());
-                existingSnapshot.setEmail(event.getEmail());
                 existingSnapshot.setFullName(event.getFullName());
                 existingSnapshot.setPhoneNumber(event.getPhoneNumber());
                 existingSnapshot.setAvatar(event.getAvatar());
@@ -131,7 +129,6 @@ public class UserEventListenerService {
                   ChatUserSnapshot newSnapshot = new ChatUserSnapshot();
                   newSnapshot.setUserId(event.getUserId());
                   newSnapshot.setUsername(event.getUsername());
-                  newSnapshot.setEmail(event.getEmail());
                   newSnapshot.setFullName(event.getFullName());
                   newSnapshot.setPhoneNumber(event.getPhoneNumber());
                   newSnapshot.setAvatar(event.getAvatar());
