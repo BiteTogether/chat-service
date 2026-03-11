@@ -7,14 +7,15 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface MessageRepository extends ReactiveMongoRepository<Message, String> {
-  Flux<Message> findByRoomIdOrderByCreatedAtAsc(String roomId);
 
-  Flux<Message> findByRoomIdOrderByCreatedAtAsc(String roomId, Pageable pageable);
+  Mono<Long> countByConversationIdAndSequenceGreaterThan(String conversationId, Long sequence);
 
-  Flux<Message> findByReplyToMessageId(String replyToMessageId);
+  Mono<Void> deleteByConversationId(String conversationId);
 
-  // Pagination support methods
-  Flux<Message> findByRoomId(String roomId, Pageable pageable);
+  Flux<Message> findByConversationIdOrderBySequenceDesc(String conversationId, Pageable pageable);
 
-  Mono<Long> countByRoomId(String roomId);
+  Flux<Message> findByConversationIdAndSequenceLessThanOrderBySequenceDesc(
+      String conversationId, Long sequence, Pageable pageable);
+
+  Mono<Message> findTopByConversationIdOrderBySequenceDesc(String conversationId);
 }

@@ -1,10 +1,11 @@
 package com.bitetogether.chat_service.controller;
 
-import com.bitetogether.chat_service.dto.message.MessageRequest;
-import com.bitetogether.chat_service.dto.message.MessageResponse;
+import com.bitetogether.chat_service.dto.message.ChatInboundMessage;
+import com.bitetogether.chat_service.dto.message.ChatMessageDTO;
+import com.bitetogether.chat_service.dto.message.MessagePageResponse;
+import com.bitetogether.chat_service.dto.message.UpdateMessageRequest;
 import com.bitetogether.chat_service.service.MessageService;
 import com.bitetogether.common.dto.ApiResponseDTO;
-import com.bitetogether.common.dto.ApiResponsePaginationDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -12,207 +13,218 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/v1/messages")
 @RequiredArgsConstructor
+@RequestMapping("/api/v1/messages")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Tag(name = "Message Management", description = "REST API endpoints for managing chat messages")
+@Tag(name = "Message", description = "Message management APIs")
 public class MessageController {
 
   MessageService messageService;
+
+  // ==================== CREATE ====================
 
   @PostMapping
   @Operation(
       summary = "Send a new message",
       description =
-          "Creates and sends a new message to a specific chat room. The message will be broadcasted to all subscribers of the room in real-time.")
+          "Creates and sends a new message to a specific conversation. "
+              + "The message will be encrypted and broadcasted to all participants in real-time.")
   @ApiResponses(
       value = {
         @ApiResponse(
-            responseCode = "200",
+            responseCode = "201",
             description = "Message sent successfully",
-            content = @Content(schema = @Schema(implementation = MessageResponse.class))),
+            content = @Content(schema = @Schema(implementation = ChatMessageDTO.class))),
         @ApiResponse(
             responseCode = "400",
             description = "Invalid message request",
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(
+            responseCode = "403",
+            description = "User is not a participant of the conversation",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
-  public Mono<ResponseEntity<ApiResponseDTO<MessageResponse>>> sendMessage(
+  public Mono<ResponseEntity<ApiResponseDTO<ChatMessageDTO>>> sendMessage(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Message details to be sent",
               required = true,
-              content = @Content(schema = @Schema(implementation = MessageRequest.class)))
+              content = @Content(schema = @Schema(implementation = ChatInboundMessage.class)))
+          @Valid
           @RequestBody
-          MessageRequest request) {
-    return messageService.sendMessage(request).map(ResponseEntity::ok);
+          ChatInboundMessage inbound) {
+    return messageService.processIncoming(inbound)
+        .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
   }
 
-  @PutMapping("/{messageId}")
+  // ==================== READ ====================
+
+  @GetMapping("/conversation/{conversationId}")
   @Operation(
-      summary = "Update an existing message",
+      summary = "Get messages by conversation",
       description =
-          "Updates the content or type of an existing message. The updated message will be broadcasted to all subscribers in real-time.")
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Message updated successfully",
-            content = @Content(schema = @Schema(implementation = MessageResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid message ID or request"),
-        @ApiResponse(responseCode = "404", description = "Message not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-      })
-  public Mono<ResponseEntity<ApiResponseDTO<MessageResponse>>> updateMessage(
-      @Parameter(
-              description = "ID of the message to update",
-              required = true,
-              example = "507f1f77bcf86cd799439011")
-          @PathVariable
-          String messageId,
-      @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Updated message details",
-              required = true,
-              content = @Content(schema = @Schema(implementation = MessageRequest.class)))
-          @RequestBody
-          MessageRequest request) {
-    return messageService.updateMessage(messageId, request).map(ResponseEntity::ok);
-  }
-
-  @DeleteMapping("/{messageId}")
-  @Operation(
-      summary = "Delete a message",
-      description =
-          "Deletes a message from the chat room. A deletion event will be broadcasted to all subscribers in real-time.")
-  @ApiResponses(
-      value = {
-        @ApiResponse(responseCode = "200", description = "Message deleted successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid message ID"),
-        @ApiResponse(responseCode = "404", description = "Message not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-      })
-  public Mono<ResponseEntity<ApiResponseDTO<Void>>> deleteMessage(
-      @Parameter(
-              description = "ID of the message to delete",
-              required = true,
-              example = "507f1f77bcf86cd799439011")
-          @PathVariable
-          String messageId) {
-    return messageService.deleteMessage(messageId).map(ResponseEntity::ok);
-  }
-
-  @GetMapping("/{messageId}")
-  @Operation(
-      summary = "Get message by ID",
-      description = "Retrieves a specific message by its unique identifier")
-  @ApiResponses(
-      value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Message retrieved successfully",
-            content = @Content(schema = @Schema(implementation = MessageResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid message ID"),
-        @ApiResponse(responseCode = "404", description = "Message not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-      })
-  public Mono<ResponseEntity<ApiResponseDTO<MessageResponse>>> getMessageById(
-      @Parameter(
-              description = "ID of the message to retrieve",
-              required = true,
-              example = "507f1f77bcf86cd799439011")
-          @PathVariable
-          String messageId) {
-    return messageService.getMessageById(messageId).map(ResponseEntity::ok);
-  }
-
-  @GetMapping("/room/{roomId}")
-  @Operation(
-      summary = "Get messages in a room with pagination",
-      description =
-          "Retrieves messages in a specific chat room with pagination support. Returns page metadata including total count and total pages.")
+          "Retrieves messages for a specific conversation with cursor-based pagination. "
+              + "Messages are returned in descending order (newest first). "
+              + "Use the 'cursor' parameter to fetch older messages.")
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
             description = "Messages retrieved successfully",
-            content = @Content(schema = @Schema(implementation = MessageResponse.class))),
+            content = @Content(schema = @Schema(implementation = MessagePageResponse.class))),
         @ApiResponse(
-            responseCode = "400",
-            description = "Invalid room ID or pagination parameters"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+            responseCode = "403",
+            description = "User is not a participant of the conversation",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Conversation not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
-  public Mono<ResponseEntity<ApiResponsePaginationDTO<MessageResponse>>> getMessagesByRoomPaginated(
-      @Parameter(description = "ID of the chat room", required = true, example = "room123")
+  public Mono<ResponseEntity<ApiResponseDTO<MessagePageResponse>>> getMessagesByConversation(
+      @Parameter(description = "ID of the conversation", required = true, example = "conv_xyz789")
           @PathVariable
-          String roomId,
-      @Parameter(description = "Page number (0-indexed)", example = "0")
-          @RequestParam(defaultValue = "0")
-          int page,
-      @Parameter(description = "Number of items per page", example = "20")
-          @RequestParam(defaultValue = "20")
-          int size) {
-    return messageService.getMessagesByRoomPaginated(roomId, page, size).map(ResponseEntity::ok);
+          String conversationId,
+      @Parameter(
+              description = "Cursor (sequence number) to start from. Omit for first page.",
+              example = "42")
+          @RequestParam(required = false)
+          Long cursor,
+      @Parameter(
+              description = "Number of messages to fetch (default 20, max 100)",
+              example = "20")
+          @RequestParam(required = false)
+          Integer limit) {
+    return messageService.getMessagesByConversationId(conversationId, cursor, limit)
+        .map(ResponseEntity::ok);
   }
 
-  @GetMapping(value = "/room/{roomId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @GetMapping("/{messageId}")
   @Operation(
-      summary = "Stream messages in real-time",
-      description =
-          "Opens a Server-Sent Events (SSE) stream to receive real-time message updates for a specific room. "
-              + "This includes existing messages followed by new messages, updates, and deletions as they occur.")
+      summary = "Get a message by ID",
+      description = "Retrieves a single message by its ID. User must be a participant of the conversation.")
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
-            description = "Stream established successfully",
-            content =
-                @Content(
-                    mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
-                    schema = @Schema(implementation = MessageResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid room ID"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-      })
-  public Flux<ApiResponseDTO<MessageResponse>> streamMessages(
-      @Parameter(
-              description = "ID of the chat room to stream messages from",
-              required = true,
-              example = "room123")
-          @PathVariable
-          String roomId) {
-    return messageService.streamMessages(roomId);
-  }
-
-  @GetMapping("/{messageId}/replies")
-  @Operation(
-      summary = "Get all replies to a message",
-      description =
-          "Retrieves all messages that are replies to a specific message. This is useful for implementing threaded conversations and showing reply chains.")
-  @ApiResponses(
-      value = {
+            description = "Message retrieved successfully",
+            content = @Content(schema = @Schema(implementation = ChatMessageDTO.class))),
         @ApiResponse(
-            responseCode = "200",
-            description = "Replies retrieved successfully",
-            content = @Content(schema = @Schema(implementation = MessageResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Invalid message ID"),
-        @ApiResponse(responseCode = "404", description = "Message not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+            responseCode = "403",
+            description = "User is not a participant of the conversation",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Message not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
-  public Flux<ResponseEntity<ApiResponseDTO<MessageResponse>>> getMessageReplies(
-      @Parameter(
-              description = "ID of the message to get replies for",
-              required = true,
-              example = "507f1f77bcf86cd799439011")
+  public Mono<ResponseEntity<ApiResponseDTO<ChatMessageDTO>>> getMessageById(
+      @Parameter(description = "ID of the message", required = true, example = "msg_abc123")
           @PathVariable
           String messageId) {
-    return messageService.getMessageReplies(messageId).map(ResponseEntity::ok);
+    return messageService.getMessageById(messageId)
+        .map(ResponseEntity::ok);
+  }
+
+  // ==================== UPDATE ====================
+
+  @PutMapping("/{messageId}")
+  @Operation(
+      summary = "Update a message",
+      description =
+          "Updates the content of a message. Only the sender can update their own message. "
+              + "The update will be broadcasted to all participants in real-time.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Message updated successfully",
+            content = @Content(schema = @Schema(implementation = ChatMessageDTO.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid update request",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "User is not authorized to update this message",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Message not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
+      })
+  public Mono<ResponseEntity<ApiResponseDTO<ChatMessageDTO>>> updateMessage(
+      @Parameter(description = "ID of the message to update", required = true, example = "msg_abc123")
+          @PathVariable
+          String messageId,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description = "New message content",
+              required = true,
+              content = @Content(schema = @Schema(implementation = UpdateMessageRequest.class)))
+          @Valid
+          @RequestBody
+          UpdateMessageRequest request) {
+    return messageService.updateMessage(messageId, request)
+        .map(ResponseEntity::ok);
+  }
+
+  // ==================== DELETE ====================
+
+  @DeleteMapping("/{messageId}")
+  @Operation(
+      summary = "Delete a message",
+      description =
+          "Deletes a message. Only the sender can delete their own message. "
+              + "The deletion will be broadcasted to all participants in real-time.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Message deleted successfully",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "User is not authorized to delete this message",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Message not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
+      })
+  public Mono<ResponseEntity<ApiResponseDTO<Void>>> deleteMessage(
+      @Parameter(description = "ID of the message to delete", required = true, example = "msg_abc123")
+          @PathVariable
+          String messageId) {
+    return messageService.deleteMessage(messageId)
+        .map(ResponseEntity::ok);
   }
 }
