@@ -11,6 +11,7 @@ public class KafkaProperties {
   private String bootstrapServers;
   private Consumer consumer;
   private Topic topic;
+  private Properties properties;
 
   @Data
   public static class Consumer {
@@ -22,5 +23,31 @@ public class KafkaProperties {
     private String userEvents;
     private String conversationEvents;
   }
-}
 
+  @Data
+  public static class Properties {
+    private String securityProtocol;
+    private Ssl ssl;
+
+    @Data
+    public static class Ssl {
+      private Keystore keystore;
+      private Truststore truststore;
+      private String endpointIdentificationAlgorithm;
+
+      @Data
+      public static class Keystore {
+        private String type;
+        private String location;
+        private String password;
+      }
+
+      @Data
+      public static class Truststore {
+        private String type;
+        private String location;
+        private String password;
+      }
+    }
+  }
+}
