@@ -33,4 +33,3 @@ public class ChatUserSnapshot extends BaseModel {
   @Field("last_synced_at")
   private LocalDateTime lastSyncedAt;
 }
-

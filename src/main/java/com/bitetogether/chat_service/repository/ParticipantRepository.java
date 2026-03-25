@@ -14,7 +14,6 @@ public interface ParticipantRepository extends ReactiveMongoRepository<Participa
 
   Flux<Participant> findByUserId(Long userId);
 
-
   Mono<Participant> findByConversationIdAndUserId(String conversationId, Long userId);
 
   Mono<Void> deleteByConversationId(String conversationId);

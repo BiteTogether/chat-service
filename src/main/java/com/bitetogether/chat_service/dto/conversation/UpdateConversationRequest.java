@@ -15,4 +15,3 @@ public class UpdateConversationRequest {
   @Schema(description = "New avatar URL", example = "https://example.com/new-avatar.png")
   private String avatarUrl;
 }
-

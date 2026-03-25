@@ -35,7 +35,8 @@ public enum ErrorCode implements BaseErrorCode {
   // Participant errors
   NOT_A_PARTICIPANT(ApiResponseStatus.FORBIDDEN, "You are not a participant in this conversation"),
   PARTICIPANT_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "Participant not found"),
-  CANNOT_REMOVE_LAST_ADMIN(ApiResponseStatus.BAD_REQUEST, "Cannot remove the last admin from the conversation"),
+  CANNOT_REMOVE_LAST_ADMIN(
+      ApiResponseStatus.BAD_REQUEST, "Cannot remove the last admin from the conversation"),
   ALREADY_A_PARTICIPANT(ApiResponseStatus.BAD_REQUEST, "User is already a participant"),
 
   // User errors

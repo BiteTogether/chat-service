@@ -1,6 +1,10 @@
 package com.bitetogether.chat_service.controller;
 
-import com.bitetogether.chat_service.dto.conversation.*;
+import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
+import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
+import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
+import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
+import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
 import com.bitetogether.chat_service.enums.Role;
 import com.bitetogether.chat_service.service.ConversationService;
 import com.bitetogether.common.dto.ApiResponseDTO;
@@ -17,7 +21,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -45,7 +58,8 @@ public class ConversationController {
             content = @Content(schema = @Schema(implementation = ConversationDTO.class))),
         @ApiResponse(
             responseCode = "400",
-            description = "Invalid request - e.g., DIRECT conversation requires exactly 2 participants, GROUP requires a name",
+            description =
+                "Invalid request - e.g., DIRECT conversation requires exactly 2 participants, GROUP requires a name",
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
         @ApiResponse(
             responseCode = "401",
@@ -60,7 +74,8 @@ public class ConversationController {
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Conversation details to be created",
               required = true,
-              content = @Content(schema = @Schema(implementation = CreateConversationRequest.class)))
+              content =
+                  @Content(schema = @Schema(implementation = CreateConversationRequest.class)))
           @Valid
           @RequestBody
           CreateConversationRequest request) {
@@ -74,7 +89,8 @@ public class ConversationController {
   @GetMapping("/{conversationId}")
   @Operation(
       summary = "Get a conversation by ID",
-      description = "Retrieves detailed information about a specific conversation including participants and unread count.")
+      description =
+          "Retrieves detailed information about a specific conversation including participants and unread count.")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -142,7 +158,8 @@ public class ConversationController {
   @PutMapping("/{conversationId}")
   @Operation(
       summary = "Update a conversation",
-      description = "Updates conversation details such as name and avatar. Only ADMIN participants can perform this action.")
+      description =
+          "Updates conversation details such as name and avatar. Only ADMIN participants can perform this action.")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -173,7 +190,8 @@ public class ConversationController {
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Updated conversation details",
               required = true,
-              content = @Content(schema = @Schema(implementation = UpdateConversationRequest.class)))
+              content =
+                  @Content(schema = @Schema(implementation = UpdateConversationRequest.class)))
           @Valid
           @RequestBody
           UpdateConversationRequest request) {
@@ -185,7 +203,8 @@ public class ConversationController {
   @PostMapping("/{conversationId}/participants/{userId}")
   @Operation(
       summary = "Add a participant to a conversation",
-      description = "Adds a new participant to the conversation. Only ADMIN participants can add new members.")
+      description =
+          "Adds a new participant to the conversation. Only ADMIN participants can add new members.")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -254,8 +273,7 @@ public class ConversationController {
       @Parameter(description = "Conversation ID", required = true, example = "conv_abc123")
           @PathVariable
           String conversationId,
-      @Parameter(description = "User ID to remove", required = true, example = "123")
-          @PathVariable
+      @Parameter(description = "User ID to remove", required = true, example = "123") @PathVariable
           Long userId) {
     return conversationService.removeParticipant(conversationId, userId).map(ResponseEntity::ok);
   }
@@ -293,8 +311,7 @@ public class ConversationController {
       @Parameter(description = "Conversation ID", required = true, example = "conv_abc123")
           @PathVariable
           String conversationId,
-      @Parameter(description = "User ID to update", required = true, example = "123")
-          @PathVariable
+      @Parameter(description = "User ID to update", required = true, example = "123") @PathVariable
           Long userId,
       @Parameter(description = "New role for the participant", required = true, example = "ADMIN")
           @RequestParam
@@ -338,4 +355,3 @@ public class ConversationController {
     return conversationService.deleteConversation(conversationId).map(ResponseEntity::ok);
   }
 }
-

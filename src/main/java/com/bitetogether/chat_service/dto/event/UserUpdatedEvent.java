@@ -23,4 +23,3 @@ public class UserUpdatedEvent {
 
   private Long version;
 }
-

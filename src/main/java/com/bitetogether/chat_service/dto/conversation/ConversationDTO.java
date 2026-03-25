@@ -40,4 +40,3 @@ public class ConversationDTO extends BaseResponse {
   @Schema(description = "Unread message count for current user", example = "5")
   private Long unreadCount;
 }
-

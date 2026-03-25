@@ -33,60 +33,63 @@ public class RealtimeSubscriber {
   private void subscribeToMessageCreated() {
     publisher
         .messageCreatedStream()
-        .flatMap(event -> {
-          log.info("Broadcasting new message to conversation: {}", event.conversationId());
-          WebSocketOutboundMessage outbound = WebSocketOutboundMessage.builder()
-              .action(WebSocketAction.SEND)
-              .conversationId(event.conversationId())
-              .message(event.message())
-              .build();
-          return broadcastToConversation(event.conversationId(), outbound);
-        })
+        .flatMap(
+            event -> {
+              log.info("Broadcasting new message to conversation: {}", event.conversationId());
+              WebSocketOutboundMessage outbound =
+                  WebSocketOutboundMessage.builder()
+                      .action(WebSocketAction.SEND)
+                      .conversationId(event.conversationId())
+                      .message(event.message())
+                      .build();
+              return broadcastToConversation(event.conversationId(), outbound);
+            })
         .subscribe(
             null,
             error -> log.error("Error in message created subscriber: {}", error.getMessage()),
-            () -> log.info("Message created subscriber completed")
-        );
+            () -> log.info("Message created subscriber completed"));
   }
 
   private void subscribeToMessageUpdated() {
     publisher
         .messageUpdatedStream()
-        .flatMap(event -> {
-          log.info("Broadcasting updated message to conversation: {}", event.conversationId());
-          WebSocketOutboundMessage outbound = WebSocketOutboundMessage.builder()
-              .action(WebSocketAction.SEND)
-              .eventType("MESSAGE_UPDATED")
-              .conversationId(event.conversationId())
-              .message(event.message())
-              .build();
-          return broadcastToConversation(event.conversationId(), outbound);
-        })
+        .flatMap(
+            event -> {
+              log.info("Broadcasting updated message to conversation: {}", event.conversationId());
+              WebSocketOutboundMessage outbound =
+                  WebSocketOutboundMessage.builder()
+                      .action(WebSocketAction.SEND)
+                      .eventType("MESSAGE_UPDATED")
+                      .conversationId(event.conversationId())
+                      .message(event.message())
+                      .build();
+              return broadcastToConversation(event.conversationId(), outbound);
+            })
         .subscribe(
             null,
             error -> log.error("Error in message updated subscriber: {}", error.getMessage()),
-            () -> log.info("Message updated subscriber completed")
-        );
+            () -> log.info("Message updated subscriber completed"));
   }
 
   private void subscribeToMessageDeleted() {
     publisher
         .messageDeletedStream()
-        .flatMap(event -> {
-          log.info("Broadcasting deleted message to conversation: {}", event.conversationId());
-          WebSocketOutboundMessage outbound = WebSocketOutboundMessage.builder()
-              .action(WebSocketAction.SEND)
-              .eventType("MESSAGE_DELETED")
-              .conversationId(event.conversationId())
-              .messageId(event.messageId())
-              .build();
-          return broadcastToConversation(event.conversationId(), outbound);
-        })
+        .flatMap(
+            event -> {
+              log.info("Broadcasting deleted message to conversation: {}", event.conversationId());
+              WebSocketOutboundMessage outbound =
+                  WebSocketOutboundMessage.builder()
+                      .action(WebSocketAction.SEND)
+                      .eventType("MESSAGE_DELETED")
+                      .conversationId(event.conversationId())
+                      .messageId(event.messageId())
+                      .build();
+              return broadcastToConversation(event.conversationId(), outbound);
+            })
         .subscribe(
             null,
             error -> log.error("Error in message deleted subscriber: {}", error.getMessage()),
-            () -> log.info("Message deleted subscriber completed")
-        );
+            () -> log.info("Message deleted subscriber completed"));
   }
 
   private Mono<Void> broadcastToConversation(String conversationId, Object message) {
@@ -107,9 +110,7 @@ public class RealtimeSubscriber {
     }
   }
 
-  /**
-   * WebSocket outbound message wrapper for real-time events
-   */
+  /** WebSocket outbound message wrapper for real-time events */
   @Data
   @Builder
   private static class WebSocketOutboundMessage {
