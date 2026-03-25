@@ -21,6 +21,4 @@ public interface ParticipantRepository extends ReactiveMongoRepository<Participa
   Mono<Void> deleteByConversationIdAndUserId(String conversationId, Long userId);
 
   Mono<Long> countByConversationIdAndRole(String conversationId, Role role);
-
-  Flux<Participant> findByUserIdIn(java.util.Set<Long> userIds);
 }

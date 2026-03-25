@@ -53,19 +53,6 @@ public final class PaginationUtils {
   }
 
   /**
-   * Create a PageRequest with custom bounds for fetching one extra item.
-   *
-   * @param limit the requested limit
-   * @param defaultSize the default page size
-   * @param maxSize the maximum page size
-   * @return PageRequest with size = normalizedLimit + 1
-   */
-  public static PageRequest createPageRequest(Integer limit, int defaultSize, int maxSize) {
-    int pageSize = normalizePageSize(limit, defaultSize, maxSize);
-    return PageRequest.of(0, pageSize + 1);
-  }
-
-  /**
    * Build a cursor-based page result from a list of items.
    *
    * @param items the fetched items (may include one extra for hasMore detection)
