@@ -1,10 +1,9 @@
 package com.bitetogether.chat_service.dto.conversation;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 
 @Data
 @Builder
@@ -23,4 +22,3 @@ public class ConversationPageResponse {
   @Schema(description = "Total number of conversations returned", example = "20")
   private int size;
 }
-

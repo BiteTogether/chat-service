@@ -2,6 +2,7 @@ package com.bitetogether.chat_service.service;
 
 import com.bitetogether.chat_service.dto.event.UserCreatedEvent;
 import com.bitetogether.chat_service.dto.event.UserUpdatedEvent;
+import com.bitetogether.chat_service.exception.KafkaEventProcessingException;
 import com.bitetogether.chat_service.model.ChatUserSnapshot;
 import com.bitetogether.chat_service.repository.ChatUserSnapshotRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,28 +36,27 @@ public class UserEventListenerService {
       @Header(KafkaHeaders.OFFSET) long offset) {
 
     log.info(
-        "Received message from topic: {}, partition: {}, offset: {}",
-        topic,
-        partition,
-        offset);
+        "Received message from topic: {}, partition: {}, offset: {}", topic, partition, offset);
 
     try {
       JsonNode jsonNode = objectMapper.readTree(message);
 
       if (jsonNode.has("userId")) {
         // Check if it's a create or update event based on version
-        Long version = jsonNode.get("version").asLong();
+        long version = jsonNode.get("version").asLong();
 
         if (version == 0) {
           UserCreatedEvent event = objectMapper.treeToValue(jsonNode, UserCreatedEvent.class);
-          handleUserCreatedEvent(event).subscribe();
+          handleUserCreatedEvent(event).block();
         } else {
           UserUpdatedEvent event = objectMapper.treeToValue(jsonNode, UserUpdatedEvent.class);
-          handleUserUpdatedEvent(event).subscribe();
+          handleUserUpdatedEvent(event).block();
         }
       }
     } catch (Exception e) {
       log.error("Error processing user event: {}", e.getMessage(), e);
+      // Re-throw to trigger the error handler and prevent offset commit
+      throw new KafkaEventProcessingException("Failed to process user event", e);
     }
   }
 
@@ -75,9 +75,12 @@ public class UserEventListenerService {
     return chatUserSnapshotRepository
         .save(snapshot)
         .doOnSuccess(
-            saved -> log.info("Successfully created ChatUserSnapshot for userId: {}", event.getUserId()))
+            saved ->
+                log.info("Successfully created ChatUserSnapshot for userId: {}", event.getUserId()))
         .doOnError(
-            error -> log.error("Failed to create ChatUserSnapshot for userId: {}", event.getUserId(), error));
+            error ->
+                log.error(
+                    "Failed to create ChatUserSnapshot for userId: {}", event.getUserId(), error));
   }
 
   private Mono<ChatUserSnapshot> handleUserUpdatedEvent(UserUpdatedEvent event) {
@@ -139,4 +142,3 @@ public class UserEventListenerService {
                 }));
   }
 }
-

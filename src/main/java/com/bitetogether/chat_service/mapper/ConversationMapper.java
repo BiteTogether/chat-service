@@ -55,4 +55,3 @@ public interface ConversationMapper {
       @MappingTarget Conversation conversation,
       com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest request);
 }
-

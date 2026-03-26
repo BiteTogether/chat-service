@@ -12,4 +12,3 @@ public class UpdateMessageRequest {
   @Schema(description = "New message content", example = "Updated message content")
   private String content;
 }
-

@@ -1,10 +1,9 @@
 package com.bitetogether.chat_service.dto.message;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 
 @Data
 @Builder
@@ -23,4 +22,3 @@ public class MessagePageResponse {
   @Schema(description = "Total number of messages returned", example = "20")
   private int size;
 }
-

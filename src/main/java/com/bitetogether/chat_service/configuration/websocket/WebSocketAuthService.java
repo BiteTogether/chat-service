@@ -15,20 +15,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
 /**
- * Service to extract user context from WebSocket handshake.
- * Supports both query parameters (for browser clients) and headers (for API Gateway).
+ * Service to extract user context from WebSocket handshake. Supports both query parameters (for
+ * browser clients) and headers (for API Gateway).
  */
 @Slf4j
 @Component
 public class WebSocketAuthService {
 
-  public static final String USER_ID_ATTR = "userId";
-  public static final String USER_CONTEXT_ATTR = "userContext";
+  private static final String USER_ID_PARAM = "userId";
 
-  /**
-   * Extract UserContext from WebSocket handshake info.
-   * Priority: Headers > Query Parameters
-   */
+  /** Extract UserContext from WebSocket handshake info. Priority: Headers > Query Parameters */
   public Optional<UserContext> extractUserContext(URI uri, HttpHeaders headers) {
     // Try headers first (from API Gateway)
     Optional<UserContext> fromHeaders = extractFromHeaders(headers);
@@ -58,7 +54,8 @@ public class WebSocketAuthService {
       Long userId = Long.parseLong(userIdHeader);
       String role = Optional.ofNullable(headers.getFirst(HEADER_USER_ROLE)).orElse("USER");
       String email = Optional.ofNullable(headers.getFirst(HEADER_USER_EMAIL)).orElse("");
-      String username = Optional.ofNullable(headers.getFirst(HEADER_USERNAME)).orElse("user_" + userId);
+      String username =
+          Optional.ofNullable(headers.getFirst(HEADER_USERNAME)).orElse("user_" + userId);
 
       return Optional.of(new UserContext(userId, role, email, username));
     } catch (NumberFormatException e) {
@@ -74,7 +71,7 @@ public class WebSocketAuthService {
     }
 
     Map<String, String> params = parseQueryParams(query);
-    String userIdParam = params.get("userId");
+    String userIdParam = params.get(USER_ID_PARAM);
     if (userIdParam == null) {
       return Optional.empty();
     }
@@ -96,11 +93,8 @@ public class WebSocketAuthService {
     return Arrays.stream(query.split("&"))
         .map(param -> param.split("=", 2))
         .filter(parts -> parts.length == 2)
-        .collect(java.util.stream.Collectors.toMap(
-            parts -> parts[0],
-            parts -> parts[1],
-            (v1, v2) -> v1
-        ));
+        .collect(
+            java.util.stream.Collectors.toMap(
+                parts -> parts[0], parts -> parts[1], (v1, v2) -> v1));
   }
 }
-

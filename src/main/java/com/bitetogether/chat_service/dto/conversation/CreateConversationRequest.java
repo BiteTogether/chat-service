@@ -17,14 +17,17 @@ public class CreateConversationRequest {
   private ConversationType type;
 
   @Size(max = 100, message = "Name must be at most 100 characters")
-  @Schema(description = "Conversation name (required for GROUP, optional for DIRECT)", example = "Project Team")
+  @Schema(
+      description = "Conversation name (required for GROUP, optional for DIRECT)",
+      example = "Project Team")
   private String name;
 
-  @Schema(description = "Avatar URL for the conversation", example = "https://example.com/avatar.png")
+  @Schema(
+      description = "Avatar URL for the conversation",
+      example = "https://example.com/avatar.png")
   private String avatarUrl;
 
   @NotEmpty(message = "At least one participant is required")
   @Schema(description = "Set of user IDs to add as participants", example = "[1, 2, 3]")
   private Set<Long> participantIds;
 }
-

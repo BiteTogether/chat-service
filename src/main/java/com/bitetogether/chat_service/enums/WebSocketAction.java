@@ -19,4 +19,3 @@ public enum WebSocketAction {
   @Schema(description = "Mark messages as read")
   READ
 }
-

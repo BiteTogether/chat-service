@@ -19,7 +19,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -66,7 +74,8 @@ public class MessageController {
           @Valid
           @RequestBody
           ChatInboundMessage inbound) {
-    return messageService.processIncoming(inbound)
+    return messageService
+        .processIncoming(inbound)
         .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
   }
 
@@ -107,19 +116,19 @@ public class MessageController {
               example = "42")
           @RequestParam(required = false)
           Long cursor,
-      @Parameter(
-              description = "Number of messages to fetch (default 20, max 100)",
-              example = "20")
+      @Parameter(description = "Number of messages to fetch (default 20, max 100)", example = "20")
           @RequestParam(required = false)
           Integer limit) {
-    return messageService.getMessagesByConversationId(conversationId, cursor, limit)
+    return messageService
+        .getMessagesByConversationId(conversationId, cursor, limit)
         .map(ResponseEntity::ok);
   }
 
   @GetMapping("/{messageId}")
   @Operation(
       summary = "Get a message by ID",
-      description = "Retrieves a single message by its ID. User must be a participant of the conversation.")
+      description =
+          "Retrieves a single message by its ID. User must be a participant of the conversation.")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -143,8 +152,7 @@ public class MessageController {
       @Parameter(description = "ID of the message", required = true, example = "msg_abc123")
           @PathVariable
           String messageId) {
-    return messageService.getMessageById(messageId)
-        .map(ResponseEntity::ok);
+    return messageService.getMessageById(messageId).map(ResponseEntity::ok);
   }
 
   // ==================== UPDATE ====================
@@ -179,7 +187,10 @@ public class MessageController {
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
   public Mono<ResponseEntity<ApiResponseDTO<ChatMessageDTO>>> updateMessage(
-      @Parameter(description = "ID of the message to update", required = true, example = "msg_abc123")
+      @Parameter(
+              description = "ID of the message to update",
+              required = true,
+              example = "msg_abc123")
           @PathVariable
           String messageId,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -189,8 +200,7 @@ public class MessageController {
           @Valid
           @RequestBody
           UpdateMessageRequest request) {
-    return messageService.updateMessage(messageId, request)
-        .map(ResponseEntity::ok);
+    return messageService.updateMessage(messageId, request).map(ResponseEntity::ok);
   }
 
   // ==================== DELETE ====================
@@ -221,10 +231,12 @@ public class MessageController {
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
   public Mono<ResponseEntity<ApiResponseDTO<Void>>> deleteMessage(
-      @Parameter(description = "ID of the message to delete", required = true, example = "msg_abc123")
+      @Parameter(
+              description = "ID of the message to delete",
+              required = true,
+              example = "msg_abc123")
           @PathVariable
           String messageId) {
-    return messageService.deleteMessage(messageId)
-        .map(ResponseEntity::ok);
+    return messageService.deleteMessage(messageId).map(ResponseEntity::ok);
   }
 }

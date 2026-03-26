@@ -3,6 +3,7 @@ package com.bitetogether.chat_service.service;
 import com.bitetogether.chat_service.dto.event.CreateConversationEvent;
 import com.bitetogether.chat_service.enums.ConversationType;
 import com.bitetogether.chat_service.enums.Role;
+import com.bitetogether.chat_service.exception.KafkaEventProcessingException;
 import com.bitetogether.chat_service.model.Conversation;
 import com.bitetogether.chat_service.model.Participant;
 import com.bitetogether.chat_service.repository.ConversationRepository;
@@ -47,9 +48,11 @@ public class ConversationEventListenerService {
       mapper.registerModule(new JavaTimeModule());
 
       CreateConversationEvent event = mapper.readValue(message, CreateConversationEvent.class);
-      handleCreateConversationEvent(event).subscribe();
+      handleCreateConversationEvent(event).block();
     } catch (Exception e) {
       log.error("Error processing conversation event: {}", e.getMessage(), e);
+      // Re-throw to trigger the error handler and prevent offset commit
+      throw new KafkaEventProcessingException("Failed to process conversation event", e);
     }
   }
 
@@ -67,7 +70,7 @@ public class ConversationEventListenerService {
     return checkExistingDirectConversation(participantIds)
         .flatMap(
             exists -> {
-              if (exists) {
+              if (Boolean.TRUE.equals(exists)) {
                 log.info(
                     "Direct conversation already exists between users {} and {}",
                     event.getUser1Id(),

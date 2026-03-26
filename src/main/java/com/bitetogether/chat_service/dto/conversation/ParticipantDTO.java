@@ -27,7 +27,9 @@ public class ParticipantDTO extends BaseResponse {
   @Schema(description = "Username of the participant", example = "john_doe")
   private String username;
 
-  @Schema(description = "Avatar URL of the participant", example = "https://example.com/user-avatar.png")
+  @Schema(
+      description = "Avatar URL of the participant",
+      example = "https://example.com/user-avatar.png")
   private String avatarUrl;
 
   @Schema(description = "Role in the conversation", example = "ADMIN")
@@ -39,4 +41,3 @@ public class ParticipantDTO extends BaseResponse {
   @Schema(description = "Joined timestamp")
   private LocalDateTime joinedAt;
 }
-

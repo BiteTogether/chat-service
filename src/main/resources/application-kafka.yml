@@ -1,9 +1,27 @@
 spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    properties:
+      security-protocol: ${KAFKA_SECURITY_PROTOCOL:SSL}
+      
+      ssl:
+        keystore:
+          type: ${KAFKA_SSL_KEYSTORE_TYPE:PKCS12}
+          location: ${KAFKA_SSL_KEYSTORE_LOCATION:classpath:client.keystore.p12}
+          password: ${KAFKA_SSL_KEYSTORE_PASSWORD}
+        
+        truststore:
+          type: ${KAFKA_SSL_TRUSTSTORE_TYPE:PKCS12}
+          location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:classpath:client.truststore.jks}
+          password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD}
+        
+        endpoint-identification-algorithm: ${KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM:}
+
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      
     consumer:
       group-id: ${KAFKA_CONSUMER_GROUP_ID:chat-service-group}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -11,6 +29,7 @@ spring:
       properties:
         spring.json.trusted.packages: "*"
       auto-offset-reset: earliest
+      
     topic:
       user-events: ${USER_EVENTS_TOPIC:user-events}
       conversation-events: ${CONVERSATION_EVENTS_TOPIC:conversation-events}
