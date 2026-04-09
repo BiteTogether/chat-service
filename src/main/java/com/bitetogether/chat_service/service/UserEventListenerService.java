@@ -1,6 +1,7 @@
 package com.bitetogether.chat_service.service;
 
 import com.bitetogether.chat_service.dto.event.UserCreatedEvent;
+import com.bitetogether.chat_service.dto.event.UserDeletedEvent;
 import com.bitetogether.chat_service.dto.event.UserUpdatedEvent;
 import com.bitetogether.chat_service.exception.KafkaEventProcessingException;
 import com.bitetogether.chat_service.model.ChatUserSnapshot;
@@ -41,23 +42,40 @@ public class UserEventListenerService {
     try {
       JsonNode jsonNode = objectMapper.readTree(message);
 
-      if (jsonNode.has("userId")) {
-        // Check if it's a create or update event based on version
-        long version = jsonNode.get("version").asLong();
+      if (!jsonNode.has("userId")) {
+        log.warn("Ignoring user event payload without userId");
+        return;
+      }
 
-        if (version == 0) {
-          UserCreatedEvent event = objectMapper.treeToValue(jsonNode, UserCreatedEvent.class);
-          handleUserCreatedEvent(event).block();
-        } else {
-          UserUpdatedEvent event = objectMapper.treeToValue(jsonNode, UserUpdatedEvent.class);
-          handleUserUpdatedEvent(event).block();
-        }
+      if (isUserDeletedEvent(jsonNode)) {
+        UserDeletedEvent event = objectMapper.treeToValue(jsonNode, UserDeletedEvent.class);
+        handleUserDeletedEvent(event).block();
+        return;
+      }
+
+      // Create/Update events both carry profile fields and are differentiated by version.
+      long version = jsonNode.get("version").asLong();
+
+      if (version == 0) {
+        UserCreatedEvent event = objectMapper.treeToValue(jsonNode, UserCreatedEvent.class);
+        handleUserCreatedEvent(event).block();
+      } else {
+        UserUpdatedEvent event = objectMapper.treeToValue(jsonNode, UserUpdatedEvent.class);
+        handleUserUpdatedEvent(event).block();
       }
     } catch (Exception e) {
       log.error("Error processing user event: {}", e.getMessage(), e);
       // Re-throw to trigger the error handler and prevent offset commit
       throw new KafkaEventProcessingException("Failed to process user event", e);
     }
+  }
+
+  private boolean isUserDeletedEvent(JsonNode jsonNode) {
+    return jsonNode.has("version")
+        && !jsonNode.has("username")
+        && !jsonNode.has("fullName")
+        && !jsonNode.has("phoneNumber")
+        && !jsonNode.has("avatar");
   }
 
   private Mono<ChatUserSnapshot> handleUserCreatedEvent(UserCreatedEvent event) {
@@ -140,5 +158,19 @@ public class UserEventListenerService {
 
                   return chatUserSnapshotRepository.save(newSnapshot);
                 }));
+  }
+
+  private Mono<Void> handleUserDeletedEvent(UserDeletedEvent event) {
+    log.info("Processing UserDeletedEvent for userId: {}", event.getUserId());
+
+    return chatUserSnapshotRepository
+        .deleteById(event.getUserId())
+        .doOnSuccess(
+            ignored ->
+                log.info("Successfully deleted ChatUserSnapshot for userId: {}", event.getUserId()))
+        .doOnError(
+            error ->
+                log.error(
+                    "Failed to delete ChatUserSnapshot for userId: {}", event.getUserId(), error));
   }
 }
