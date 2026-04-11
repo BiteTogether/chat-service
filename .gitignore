@@ -39,8 +39,3 @@ build/
 # Kafka SSL Certificates
 src/main/resources/client.keystore.p12
 src/main/resources/client.truststore.jks
-src/main/resources/kafka/*.pem
-src/main/resources/kafka/*.cert
-src/main/resources/kafka/*.key
-
-RSOCKET_IMPLEMENTATION.md

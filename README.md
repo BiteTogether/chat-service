@@ -16,15 +16,15 @@ The Chat Service powers 1:1 and group messaging for BiteTogether. It exposes rea
 ### Key business rules
 
 - Conversation types:
-  - `DIRECT`: must contain exactly 2 unique participants.
-  - `GROUP`: requires a non-empty `name`.
+    - `DIRECT`: must contain exactly 2 unique participants.
+    - `GROUP`: requires a non-empty `name`.
 - Conversation creator is automatically added as `ADMIN` (for REST-created conversations).
 - Duplicate direct conversations are prevented when one already exists between 2 users.
 - Authorization rules:
-  - Only participants can read conversation/messages.
-  - Only sender can update/delete a message.
-  - Only admins can update conversation metadata, manage other participants, or delete conversation.
-  - The last admin cannot be removed/demoted.
+    - Only participants can read conversation/messages.
+    - Only sender can update/delete a message.
+    - Only admins can update conversation metadata, manage other participants, or delete conversation.
+    - The last admin cannot be removed/demoted.
 - Message retrieval auto-updates read progress for the requesting user.
 
 ### Integration behavior
@@ -42,168 +42,75 @@ The Chat Service powers 1:1 and group messaging for BiteTogether. It exposes rea
 - OpenAPI/Swagger (`springdoc-openapi-starter-webflux-ui`)
 - Shared contracts/utilities from `common-service`
 
-## Project Structure
-
-```text
-chat-service/
-  src/main/java/com/bitetogether/chat_service/
-    configuration/
-      crypto/            # encryption configuration
-      kafka/             # kafka consumer/producer/container configuration
-      mongodb/           # mongo auditing/config
-      reactive/          # reactive request context filters (user headers -> context)
-      redis/             # redis configuration
-      security/          # webflux security chain
-      webclient/         # downstream webclient config
-      websocket/         # websocket mapping and auth extraction
-    controller/          # REST APIs (ConversationController, MessageController)
-    dto/                 # request/response/event DTOs
-    enums/               # domain enums and websocket actions
-    event/               # domain event publisher interfaces/impl
-    exception/           # error code and processing exceptions
-    mapper/              # mappers between model and DTO
-    model/               # Mongo documents (Conversation, Message, Participant, ChatUserSnapshot)
-    repository/          # reactive repositories
-    service/             # business logic + kafka listeners
-    util/                # pagination and helper utilities
-    websocket/           # websocket handler, subscriber, room registry
-  src/main/resources/
-    application.yml
-    application-*.yml
+### Endpoint
+```
+ws://gateway-url/chat-service/ws/chat
 ```
 
-## API Details
+**⚠️ Important:** WebSocket connections MUST go through API Gateway (Kong).
 
-### Base paths
+### Authentication
+Gateway validates JWT token and injects headers:
+- `X-User-Id` - User ID (required)
+- `X-User-Role` - User role
+- `X-User-Email` - User email  
+- `X-Username` - Username
 
-- Conversation APIs: `/api/v1/conversations`
-- Message APIs: `/api/v1/messages`
-- WebSocket endpoint: `/ws/chat`
+Chat service reads these headers to identify the user. Direct connections without Gateway headers will be rejected.
 
-### Authentication/user context headers
+### Client Connection (via Gateway)
+```javascript
+// Client sends JWT in Authorization header
+const ws = new WebSocket('ws://gateway-url/chat-service/ws/chat', {
+  headers: {
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+```
 
-This service resolves caller context from forwarded headers (typically from API Gateway):
+**Note:** JavaScript WebSocket API doesn't support custom headers. Use Gateway's WebSocket proxy with JWT in URL or upgrade handshake.
 
-- `X-User-Id` (required for user-scoped operations)
-- `X-User-Role` (optional, defaults to `USER`)
-- `X-User-Email` (optional)
-- `X-Username` (optional)
-
-For WebSocket, user context is read from headers first, then query params fallback (`userId`, optional `role`, `email`, `username`).
-
-### Response envelope
-
-REST handlers return `ApiResponseDTO<T>` with common fields such as status, message, and data.
-
-### Conversation APIs
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/conversations` | Create conversation (`DIRECT` or `GROUP`) |
-| `GET` | `/api/v1/conversations/{conversationId}` | Get conversation details |
-| `GET` | `/api/v1/conversations?cursor=&limit=` | Get current user's conversations (cursor by ISO datetime) |
-| `PUT` | `/api/v1/conversations/{conversationId}` | Update name/avatar (admin only) |
-| `POST` | `/api/v1/conversations/{conversationId}/participants/{userId}` | Add participant (admin only) |
-| `DELETE` | `/api/v1/conversations/{conversationId}/participants/{userId}` | Remove participant (self or admin) |
-| `PATCH` | `/api/v1/conversations/{conversationId}/participants/{userId}/role?role=ADMIN` | Update role (admin only) |
-| `DELETE` | `/api/v1/conversations/{conversationId}` | Delete conversation (admin only) |
-
-`CreateConversationRequest`:
-- `type` (`DIRECT` or `GROUP`)
-- `name` (required for group)
-- `avatarUrl` (optional)
-- `participantIds` (set of user IDs)
-
-`UpdateConversationRequest`:
-- `name` (optional, max 100)
-- `avatarUrl` (optional)
-
-### Message APIs
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/messages` | Send message |
-| `GET` | `/api/v1/messages/conversation/{conversationId}?cursor=&limit=` | Get messages in conversation (cursor by sequence) |
-| `GET` | `/api/v1/messages/{messageId}` | Get message by ID |
-| `PUT` | `/api/v1/messages/{messageId}` | Update message content (sender only) |
-| `DELETE` | `/api/v1/messages/{messageId}` | Delete message (sender only) |
-
-`ChatInboundMessage` (REST send + WebSocket send):
-- `conversationId` (required)
-- `action` (required; typically `SEND` for create-message flow)
-- `messageType` (`TEXT`, `IMAGE`, `FILE`, `EMOJI`)
-- `content` (plaintext; service encrypts before persistence)
-
-`UpdateMessageRequest`:
-- `content` (required, non-blank)
-
-### WebSocket API (`/ws/chat`)
-
-Supported inbound actions (`WebSocketAction`):
-
-- `SUBSCRIBE`: subscribe current session to a conversation room.
-- `UNSUBSCRIBE`: unsubscribe current session from a room.
-- `SEND`: send a message to a room (persists and broadcasts).
-- `TYPING`: accepted but currently no-op placeholder.
-- `READ`: accepted but currently no-op placeholder.
-
-Inbound payload example:
-
+### Message Format
 ```json
 {
-  "conversationId": "conv_abc123",
+  "conversationId": "conv_123",
   "action": "SEND",
   "messageType": "TEXT",
-  "content": "Hello team"
+  "content": "Hello, world!"
 }
 ```
 
-Outbound event examples:
+**Actions**: `SEND`, `SUBSCRIBE`, `UNSUBSCRIBE`, `TYPING`, `READ`  
+**Message Types**: `TEXT`, `IMAGE`, `FILE`, `EMOJI`
 
-- Created message: `{"action":"SEND","conversationId":"...","message":{...}}`
-- Updated message: `{"action":"SEND","eventType":"MESSAGE_UPDATED","conversationId":"...","message":{...}}`
-- Deleted message: `{"action":"SEND","eventType":"MESSAGE_DELETED","conversationId":"...","messageId":"..."}`
+### Testing
+Xem các công cụ test trong thư mục [`test/`](test/)
 
-If parsing/auth fails, the socket emits:
+---
 
-```json
-{"type":"ERROR","message":"..."}
-```
+## Configuration
 
-## Pagination
+- **Server Port:** `8083` (environment variable: `SERVER_PORT`)
+- **WebSocket Path:** `/ws/chat`
 
-- Conversations: cursor is an ISO datetime string (`YYYY-MM-DDTHH:mm:ss`), newest-first.
-- Messages: cursor is message sequence number, newest-first.
-- `limit` is normalized in service utilities (default and max safeguards are applied).
+## Running the Service
 
-## Configuration Notes
-
-Profiles included from `application.yml`:
-
-- `security`
-- `openapi`
-- `database`
-- `webclient`
-- `kafka`
-- `redis`
-- `crypto`
-
-Key environment variables depend on each profile file, and include at least:
-
-- `SERVER_PORT`
-- Mongo/Kafka/Redis/crypto settings referenced in `application-*.yml`
-- OpenAPI metadata variables (`API_TITLE`, `API_DESCRIPTION`, `API_VERSION`, etc.)
-
-## Running Locally
-
+### Using Docker Compose
 ```bash
-cd /home/kienle/Coding/BiteTogether/chat-service
-./mvnw spring-boot:run
+docker-compose up -d
 ```
 
-## Test
+Service sẽ chạy trên port `8083`.
 
+### Checking Service Status
 ```bash
-cd /home/kienle/Coding/BiteTogether/chat-service
-./mvnw test
+# Check if service is running
+curl http://localhost:8083/actuator/health
+
+# View logs
+docker-compose logs -f chat-service
 ```
+
+## Environment Variables
+
+Xem file `docker-compose.yml` để biết danh sách đầy đủ các biến môi trường cần thiết.

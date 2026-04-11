@@ -22,9 +22,15 @@ RUN addgroup -S spring && adduser -S spring -G spring
 WORKDIR /app
 
 COPY --from=builder /app/target/*.jar app.jar
-COPY .env .env
-RUN chown -R spring:spring /app
+
+# Copy SSL certificates for Kafka (Aiven Cloud)
+RUN mkdir -p /app/certs
+COPY --from=builder /app/src/main/resources/client.keystore.p12 /app/certs/client.keystore.p12
+COPY --from=builder /app/src/main/resources/client.truststore.jks /app/certs/client.truststore.jks
+
+# Create directories for runtime credential overrides
+RUN mkdir -p /app/config && chown -R spring:spring /app && chown -R spring:spring /app/certs
 USER spring
 
-EXPOSE 8083
-ENTRYPOINT ["/bin/sh", "-c", "export $(grep -v '^#' .env | xargs) && java -jar app.jar"]
+EXPOSE 8083 7000
+ENTRYPOINT ["java", "-jar", "app.jar"]

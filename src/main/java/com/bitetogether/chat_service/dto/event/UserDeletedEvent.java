@@ -19,4 +19,3 @@ public class UserDeletedEvent {
 
   private Long version;
 }
-
