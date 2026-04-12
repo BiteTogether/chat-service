@@ -32,5 +32,5 @@ COPY --from=builder /app/src/main/resources/client.truststore.jks /app/certs/cli
 RUN mkdir -p /app/config && chown -R spring:spring /app && chown -R spring:spring /app/certs
 USER spring
 
-EXPOSE 8083 7000
+EXPOSE 8083
 ENTRYPOINT ["java", "-jar", "app.jar"]
