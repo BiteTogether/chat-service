@@ -6,15 +6,11 @@ services:
     restart: always
     ports:
       - "8083:8083"
-      - "7000:7000"
     networks:
       - kong-net
     environment:
       # Server Configuration
       SERVER_PORT: 8083
-      SERVER_RSOCKET_PORT: ${SERVER_RSOCKET_PORT:-7000}
-      SERVER_RSOCKET_MAPPING_PATH: ${SERVER_RSOCKET_MAPPING_PATH:-/rsocket}
-      SERVER_RSOCKET_TRANSPORT: ${SERVER_RSOCKET_TRANSPORT:-websocket}
 
       # MongoDB Configuration (Cloud - MongoDB Atlas)
       SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI}
