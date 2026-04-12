@@ -10,6 +10,7 @@ import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -20,6 +21,7 @@ import org.springframework.kafka.support.ExponentialBackOffWithMaxRetries;
 
 @Slf4j
 @Configuration
+@Profile("kafka")
 @RequiredArgsConstructor
 public class KafkaConsumerConfig {
   private final KafkaProperties kafkaProperties;

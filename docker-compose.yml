@@ -1,0 +1,75 @@
+services:
+  # Chat Service
+  chat-service:
+    image: thanhnguyen24/bitetogether-chat-service:latest
+    container_name: chat-service
+    restart: always
+    ports:
+      - "8083:8083"
+    networks:
+      - kong-net
+    environment:
+      # Server Configuration
+      SERVER_PORT: 8083
+
+      # MongoDB Configuration (Cloud - MongoDB Atlas)
+      SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI}
+
+      # Redis Configuration (Cloud - Upstash)
+      REDIS_URL: ${REDIS_URL}
+      REDIS_SSL_ENABLED: ${REDIS_SSL_ENABLED:-true}
+
+      # Crypto Configuration
+      CRYPTO_KEY: ${CRYPTO_KEY}
+
+      # Kafka Configuration (Cloud - Aiven)
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SSL}
+      KAFKA_SSL_KEYSTORE_TYPE: ${KAFKA_SSL_KEYSTORE_TYPE:-PKCS12}
+      KAFKA_SSL_KEYSTORE_LOCATION: ${KAFKA_SSL_KEYSTORE_LOCATION:-file:/app/certs/client.keystore.p12}
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${KAFKA_SSL_KEYSTORE_PASSWORD}
+      KAFKA_SSL_TRUSTSTORE_TYPE: ${KAFKA_SSL_TRUSTSTORE_TYPE:-PKCS12}
+      KAFKA_SSL_TRUSTSTORE_LOCATION: ${KAFKA_SSL_TRUSTSTORE_LOCATION:-file:/app/certs/client.truststore.jks}
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${KAFKA_SSL_TRUSTSTORE_PASSWORD}
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ${KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM:-}
+      KAFKA_CONSUMER_GROUP_ID: ${KAFKA_CONSUMER_GROUP_ID:-chat-service-group}
+      USER_EVENTS_TOPIC: ${USER_EVENTS_TOPIC:-user-events}
+      CONVERSATION_EVENTS_TOPIC: ${CONVERSATION_EVENTS_TOPIC:-conversation-events}
+
+      # WebClient Configuration
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://localhost:8081}
+
+      # API Documentation Configuration
+      API_VERSION: ${API_VERSION:-v1}
+      API_CONTACT_NAME: ${API_CONTACT_NAME:-Thanhcn}
+      API_CONTACT_EMAIL: ${API_CONTACT_EMAIL:-nguyencongthanh2406@gmail.com}
+      API_TITLE: ${API_TITLE:-BiteTogether Chat Service API}
+      API_DESCRIPTION: ${API_DESCRIPTION:-API documentation for BiteTogether Chat Service}
+      API_DEV_URL: ${API_DEV_URL:-http://localhost:8083}
+      API_DEV_API_DESCRIPTION: ${API_DEV_API_DESCRIPTION:-Stage server}
+      API_PROD_URL: ${API_PROD_URL:-https://}
+      API_PROD_API_DESCRIPTION: ${API_PROD_API_DESCRIPTION:-Production server}
+
+      # Security Configuration
+      SECURITY_PERMIT_PATHS: ${SECURITY_PERMIT_PATHS:-/actuator/**,/swagger-ui/**,/v3/api-docs/**}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      CORS_ALLOWED_METHODS: ${CORS_ALLOWED_METHODS:-GET,POST,PUT,DELETE,OPTIONS}
+      CORS_ALLOWED_HEADERS: ${CORS_ALLOWED_HEADERS:-*}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+
+      # GitHub Token (if needed)
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8083/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  kong-net:
+    driver: bridge
+
+
