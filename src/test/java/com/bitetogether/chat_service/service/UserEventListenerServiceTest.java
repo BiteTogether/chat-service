@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Mono;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,8 +85,8 @@ class UserEventListenerServiceTest {
         """;
 
     ChatUserSnapshot existing = new ChatUserSnapshot();
-    existing.setUserId(11L);
-    existing.setVersion(1L);
+    ReflectionTestUtils.setField(existing, "userId", 11L);
+    ReflectionTestUtils.setField(existing, "version", 1L);
 
     when(chatUserSnapshotRepository.findById(11L)).thenReturn(Mono.just(existing));
     when(chatUserSnapshotRepository.save(any(ChatUserSnapshot.class)))

@@ -28,6 +28,9 @@ public class RealtimeSubscriber {
     subscribeToMessageCreated();
     subscribeToMessageUpdated();
     subscribeToMessageDeleted();
+    subscribeToLocationUpdated();
+    subscribeToVoteUpdated();
+    subscribeToBillUpdated();
   }
 
   private void subscribeToMessageCreated() {
@@ -92,6 +95,69 @@ public class RealtimeSubscriber {
             () -> log.info("Message deleted subscriber completed"));
   }
 
+  private void subscribeToLocationUpdated() {
+    publisher
+        .locationUpdatedStream()
+        .flatMap(
+            event -> {
+              log.debug("Broadcasting location update to conversation: {}", event.conversationId());
+              WebSocketOutboundMessage outbound =
+                  WebSocketOutboundMessage.builder()
+                      .action(WebSocketAction.LOCATION_UPDATE)
+                      .eventType("LOCATION_UPDATED")
+                      .conversationId(event.conversationId())
+                      .location(event.location())
+                      .build();
+              return broadcastToConversation(event.conversationId(), outbound);
+            })
+        .subscribe(
+            null,
+            error -> log.error("Error in location updated subscriber: {}", error.getMessage()),
+            () -> log.info("Location updated subscriber completed"));
+  }
+
+  private void subscribeToVoteUpdated() {
+    publisher
+        .voteSessionStream()
+        .flatMap(
+            event -> {
+              log.debug("Broadcasting vote update to conversation: {}", event.conversationId());
+              WebSocketOutboundMessage outbound =
+                  WebSocketOutboundMessage.builder()
+                      .action(WebSocketAction.VOTE_UPDATE)
+                      .eventType(event.eventType())
+                      .conversationId(event.conversationId())
+                      .voteSession(event.voteSession())
+                      .build();
+              return broadcastToConversation(event.conversationId(), outbound);
+            })
+        .subscribe(
+            null,
+            error -> log.error("Error in vote updated subscriber: {}", error.getMessage()),
+            () -> log.info("Vote updated subscriber completed"));
+  }
+
+  private void subscribeToBillUpdated() {
+    publisher
+        .billSessionStream()
+        .flatMap(
+            event -> {
+              log.debug("Broadcasting bill update to conversation: {}", event.conversationId());
+              WebSocketOutboundMessage outbound =
+                  WebSocketOutboundMessage.builder()
+                      .action(WebSocketAction.BILL_UPDATE)
+                      .eventType(event.eventType())
+                      .conversationId(event.conversationId())
+                      .billSession(event.billSession())
+                      .build();
+              return broadcastToConversation(event.conversationId(), outbound);
+            })
+        .subscribe(
+            null,
+            error -> log.error("Error in bill updated subscriber: {}", error.getMessage()),
+            () -> log.info("Bill updated subscriber completed"));
+  }
+
   private Mono<Void> broadcastToConversation(String conversationId, Object message) {
     return registry
         .getSessions(conversationId)
@@ -119,5 +185,8 @@ public class RealtimeSubscriber {
     private String conversationId;
     private String messageId;
     private ChatMessageDTO message;
+    private com.bitetogether.chat_service.dto.location.LiveLocationSnapshot location;
+    private com.bitetogether.chat_service.dto.vote.VoteSessionDTO voteSession;
+    private com.bitetogether.chat_service.dto.bill.BillSessionDTO billSession;
   }
 }

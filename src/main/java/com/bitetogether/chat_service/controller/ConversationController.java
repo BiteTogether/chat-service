@@ -5,6 +5,7 @@ import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
 import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
 import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
 import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
+import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
 import com.bitetogether.chat_service.enums.Role;
 import com.bitetogether.chat_service.service.ConversationService;
 import com.bitetogether.common.dto.ApiResponseDTO;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -115,6 +117,19 @@ public class ConversationController {
           @PathVariable
           String conversationId) {
     return conversationService.getConversationById(conversationId).map(ResponseEntity::ok);
+  }
+
+  @GetMapping("/{conversationId}/locations")
+  @Operation(
+      summary = "Get live locations in conversation",
+      description =
+          "Retrieves current live location snapshots for active sharing members in a conversation.")
+  public Mono<ResponseEntity<ApiResponseDTO<List<LiveLocationSnapshot>>>>
+      getConversationLiveLocations(
+          @Parameter(description = "Conversation ID", required = true, example = "conv_abc123")
+              @PathVariable
+              String conversationId) {
+    return conversationService.getConversationLiveLocations(conversationId).map(ResponseEntity::ok);
   }
 
   @GetMapping

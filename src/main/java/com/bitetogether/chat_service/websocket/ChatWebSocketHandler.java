@@ -3,11 +3,11 @@ package com.bitetogether.chat_service.websocket;
 import com.bitetogether.chat_service.configuration.websocket.WebSocketAuthService;
 import com.bitetogether.chat_service.dto.message.ChatInboundMessage;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
+import com.bitetogether.chat_service.service.LiveLocationService;
 import com.bitetogether.chat_service.service.MessageService;
 import com.bitetogether.common.dto.UserContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,14 +19,29 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ChatWebSocketHandler implements WebSocketHandler {
 
   private final RoomSessionRegistry registry;
   private final ObjectMapper mapper;
   private final MessageService messageService;
+  private final LiveLocationService liveLocationService;
   private final WebSocketAuthService webSocketAuthService;
   private final ParticipantRepository participantRepository;
+
+  public ChatWebSocketHandler(
+      RoomSessionRegistry registry,
+      ObjectMapper mapper,
+      MessageService messageService,
+      LiveLocationService liveLocationService,
+      WebSocketAuthService webSocketAuthService,
+      ParticipantRepository participantRepository) {
+    this.registry = registry;
+    this.mapper = mapper;
+    this.messageService = messageService;
+    this.liveLocationService = liveLocationService;
+    this.webSocketAuthService = webSocketAuthService;
+    this.participantRepository = participantRepository;
+  }
 
   @Override
   @NonNull
@@ -125,6 +140,21 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                                 return sendError(
                                     session, "Failed to send message: " + e.getMessage());
                               });
+                  case LOCATION_UPDATE ->
+                      liveLocationService
+                          .handleLocationUpdate(
+                              msg.getConversationId(),
+                              userId,
+                              msg.getLocation(),
+                              msg.getIsSharing())
+                          .onErrorResume(
+                              e -> {
+                                log.error("Failed to process location update: {}", e.getMessage());
+                                return sendError(
+                                    session,
+                                    "Failed to process location update: " + e.getMessage());
+                              });
+                  case VOTE_UPDATE, BILL_UPDATE -> Mono.empty();
                   case TYPING -> handleTypingIndicator(msg);
                   case READ -> handleReadReceipt(msg);
                 })

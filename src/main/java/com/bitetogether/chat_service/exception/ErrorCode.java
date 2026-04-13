@@ -39,6 +39,26 @@ public enum ErrorCode implements BaseErrorCode {
       ApiResponseStatus.BAD_REQUEST, "Cannot remove the last admin from the conversation"),
   ALREADY_A_PARTICIPANT(ApiResponseStatus.BAD_REQUEST, "User is already a participant"),
 
+  // Location errors
+  INVALID_LOCATION_PAYLOAD(ApiResponseStatus.BAD_REQUEST, "Invalid live location payload"),
+
+  // Vote errors
+  VOTE_SESSION_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "Vote session not found"),
+  VOTE_SESSION_CLOSED(ApiResponseStatus.BAD_REQUEST, "Vote session is already closed"),
+  VOTE_OPTION_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "Vote option not found"),
+
+  // Bill errors
+  BILL_SESSION_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "Bill session not found"),
+  BILL_SESSION_ALREADY_FINALIZED(ApiResponseStatus.BAD_REQUEST, "Bill session already finalized"),
+  BILL_SESSION_NOT_FINALIZED(ApiResponseStatus.BAD_REQUEST, "Bill session is not finalized"),
+  BILL_CUSTOM_SPLIT_REQUIRES_VOTE_CREATOR(
+      ApiResponseStatus.FORBIDDEN, "Only vote creator can create custom bill split"),
+  BILL_SHARE_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "Bill share not found"),
+  BILL_PAYMENT_EXCEEDS_SHARE(ApiResponseStatus.BAD_REQUEST, "Paid amount exceeds assigned share"),
+  BILL_PARTICIPANTS_EMPTY(
+      ApiResponseStatus.BAD_REQUEST, "No participants available for bill split"),
+  BILL_TOTAL_MISMATCH(ApiResponseStatus.BAD_REQUEST, "Bill share total mismatch"),
+
   // User errors
   USER_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "User not found"),
   USER_SERVICE_UNAUTHORIZED(ApiResponseStatus.UNAUTHORIZED, "Unauthorized access to user service"),

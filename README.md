@@ -10,6 +10,7 @@ The Chat Service powers 1:1 and group messaging for BiteTogether. It exposes rea
 - Participant lifecycle: add/remove members and update participant roles.
 - Message lifecycle: send, fetch (cursor pagination), update, delete.
 - Real-time fanout of message created/updated/deleted events via WebSocket.
+- Real-time live location fanout (ephemeral, Redis-backed) via WebSocket.
 - Per-user unread state using participant `lastReadMessageSequence`.
 - Message encryption at rest (message content is encrypted before persistence).
 
@@ -32,6 +33,8 @@ The Chat Service powers 1:1 and group messaging for BiteTogether. It exposes rea
 - Kafka consumer: user events sync `ChatUserSnapshot` (`UserCreated`, `UserUpdated`, `UserDeleted`).
 - Kafka consumer: conversation events can auto-create direct conversations between two users.
 - Domain event publisher + WebSocket subscriber broadcast message changes to connected room sessions.
+- Domain event publisher + WebSocket subscriber broadcast live location updates to connected room sessions.
+- Domain event publisher + WebSocket subscriber broadcast vote and bill updates to connected room sessions.
 
 ## Tech Stack
 
@@ -78,6 +81,8 @@ chat-service/
 
 - Conversation APIs: `/api/v1/conversations`
 - Message APIs: `/api/v1/messages`
+- Vote APIs: `/api/v1/votes`
+- Bill APIs: `/api/v1/bills`
 - WebSocket endpoint: `/ws/chat`
 
 ### Authentication/user context headers
@@ -106,6 +111,7 @@ REST handlers return `ApiResponseDTO<T>` with common fields such as status, mess
 | `POST` | `/api/v1/conversations/{conversationId}/participants/{userId}` | Add participant (admin only) |
 | `DELETE` | `/api/v1/conversations/{conversationId}/participants/{userId}` | Remove participant (self or admin) |
 | `PATCH` | `/api/v1/conversations/{conversationId}/participants/{userId}/role?role=ADMIN` | Update role (admin only) |
+| `GET` | `/api/v1/conversations/{conversationId}/locations` | Get active live location snapshots in conversation |
 | `DELETE` | `/api/v1/conversations/{conversationId}` | Delete conversation (admin only) |
 
 `CreateConversationRequest`:
@@ -128,11 +134,44 @@ REST handlers return `ApiResponseDTO<T>` with common fields such as status, mess
 | `PUT` | `/api/v1/messages/{messageId}` | Update message content (sender only) |
 | `DELETE` | `/api/v1/messages/{messageId}` | Delete message (sender only) |
 
+### Vote APIs
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/votes` | Create vote session |
+| `POST` | `/api/v1/votes/{voteSessionId}/cast` | Cast or update vote |
+| `POST` | `/api/v1/votes/{voteSessionId}/close` | Close vote session and compute winner |
+| `GET` | `/api/v1/votes/{voteSessionId}` | Get vote session by ID |
+| `GET` | `/api/v1/votes/conversation/{conversationId}` | Get vote sessions in conversation |
+
+### Bill APIs
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/bills` | Create bill session (`EQUAL` or `CUSTOM` split for vote participants) |
+| `POST` | `/api/v1/bills/{billSessionId}/finalize` | Finalize draft bill |
+| `POST` | `/api/v1/bills/{billSessionId}/payments` | Confirm payment (self confirm, or creator confirms member) |
+| `GET` | `/api/v1/bills/{billSessionId}` | Get bill session by ID |
+| `GET` | `/api/v1/bills/conversation/{conversationId}` | Get bill sessions in conversation |
+
 `ChatInboundMessage` (REST send + WebSocket send):
 - `conversationId` (required)
 - `action` (required; typically `SEND` for create-message flow)
 - `messageType` (`TEXT`, `IMAGE`, `FILE`, `EMOJI`)
 - `content` (plaintext; service encrypts before persistence)
+- `location` (for `LOCATION_UPDATE`: `lat`, `lng`, `accuracy`, `heading`, `speed`, `timestamp`)
+- `isSharing` (for `LOCATION_UPDATE`: `true` to publish snapshot, `false` to stop sharing)
+
+`CreateBillSessionRequest`:
+- `conversationId` (required)
+- `voteSessionId` (required for vote-scoped bill)
+- `currency` (required)
+- `totalAmount` (required, > 0)
+- `splitType` (`EQUAL` or `CUSTOM`)
+- `customSplits` (required when `splitType=CUSTOM`; one entry per vote participant)
+
+`MarkBillSharePaidRequest`:
+- `userId` (optional; omit to confirm current user's own share, set only when bill creator confirms another member)
 
 `UpdateMessageRequest`:
 - `content` (required, non-blank)
@@ -144,6 +183,9 @@ Supported inbound actions (`WebSocketAction`):
 - `SUBSCRIBE`: subscribe current session to a conversation room.
 - `UNSUBSCRIBE`: unsubscribe current session from a room.
 - `SEND`: send a message to a room (persists and broadcasts).
+- `LOCATION_UPDATE`: publish or stop sharing current live location in a room.
+- `VOTE_UPDATE`: outbound-only realtime updates for vote sessions.
+- `BILL_UPDATE`: outbound-only realtime updates for bill sessions.
 - `TYPING`: accepted but currently no-op placeholder.
 - `READ`: accepted but currently no-op placeholder.
 
@@ -158,11 +200,41 @@ Inbound payload example:
 }
 ```
 
+Inbound live location example:
+
+```json
+{
+  "conversationId": "conv_abc123",
+  "action": "LOCATION_UPDATE",
+  "location": {
+    "lat": 10.7769,
+    "lng": 106.7009,
+    "accuracy": 12.5,
+    "heading": 90.0,
+    "speed": 1.2,
+    "timestamp": "2026-04-12T13:05:00Z"
+  },
+  "isSharing": true
+}
+```
+
 Outbound event examples:
 
 - Created message: `{"action":"SEND","conversationId":"...","message":{...}}`
 - Updated message: `{"action":"SEND","eventType":"MESSAGE_UPDATED","conversationId":"...","message":{...}}`
 - Deleted message: `{"action":"SEND","eventType":"MESSAGE_DELETED","conversationId":"...","messageId":"..."}`
+- Location update: `{"action":"LOCATION_UPDATE","eventType":"LOCATION_UPDATED","conversationId":"...","location":{...}}`
+- Vote update: `{"action":"VOTE_UPDATE","eventType":"VOTE_CAST","conversationId":"...","voteSession":{...}}`
+- Vote close: `{"action":"VOTE_UPDATE","eventType":"VOTE_CLOSED","conversationId":"...","voteSession":{...}}`
+- Bill update: `{"action":"BILL_UPDATE","eventType":"BILL_PAYMENT_UPDATED","conversationId":"...","billSession":{...}}`
+- Bill settled: `{"action":"BILL_UPDATE","eventType":"BILL_SETTLED","conversationId":"...","billSession":{...}}`
+
+Bill behavior notes:
+
+- Bill participants are taken from vote participants (`voteSession.votes` user IDs).
+- `EQUAL`: service auto-calculates per-user amount.
+- `CUSTOM`: only vote creator can create the bill; provided split amounts must match total exactly.
+- Payment confirmation is boolean-style (paid/unpaid), no partial accumulation in simplified flow.
 
 If parsing/auth fails, the socket emits:
 
@@ -193,6 +265,11 @@ Key environment variables depend on each profile file, and include at least:
 - `SERVER_PORT`
 - Mongo/Kafka/Redis/crypto settings referenced in `application-*.yml`
 - OpenAPI metadata variables (`API_TITLE`, `API_DESCRIPTION`, `API_VERSION`, etc.)
+
+Live location behavior:
+
+- Location snapshots are stored in Redis with short TTL (ephemeral, no movement history persistence).
+- Service throttles frequent `LOCATION_UPDATE` events per user/conversation to reduce spam.
 
 ## Running Locally
 
