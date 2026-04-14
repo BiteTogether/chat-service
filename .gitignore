@@ -41,3 +41,5 @@ src/main/resources/client.keystore.p12
 src/main/resources/client.truststore.jks
 
 AGENTS.md
+.gitnexus
+.claude
