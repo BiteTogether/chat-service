@@ -29,6 +29,8 @@ public enum ErrorCode implements BaseErrorCode {
       ApiResponseStatus.BAD_REQUEST, "Direct conversation already exists between these users"),
   DIRECT_CONVERSATION_REQUIRES_TWO_PARTICIPANTS(
       ApiResponseStatus.BAD_REQUEST, "Direct conversation requires exactly 2 participants"),
+  INVALID_DIRECT_CONVERSATION_USER_IDS(
+      ApiResponseStatus.BAD_REQUEST, "Both user IDs are required and must be different"),
   GROUP_CONVERSATION_REQUIRES_NAME(
       ApiResponseStatus.BAD_REQUEST, "Group conversation requires a name"),
 

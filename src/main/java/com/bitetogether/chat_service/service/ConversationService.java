@@ -1,8 +1,11 @@
 package com.bitetogether.chat_service.service;
 
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchItemResponse;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchResponse;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
 import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationIdResponse;
 import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
 import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
 import com.bitetogether.chat_service.dto.message.ChatMessageDTO;
@@ -25,8 +28,12 @@ import com.bitetogether.common.util.ApiResponseUtil;
 import com.bitetogether.common.util.ReactiveUserContextUtils;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -186,6 +193,116 @@ public class ConversationService {
       String cursor, Integer limit) {
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
         .flatMap(userId -> fetchUserConversations(userId, cursor, limit));
+  }
+
+  /** Get direct conversation ID between current user and another user. */
+  public Mono<ApiResponseDTO<DirectConversationIdResponse>> getDirectConversationIdWithCurrentUser(
+      Long otherUserId) {
+    if (otherUserId == null) {
+      return Mono.error(new AppException(ErrorCode.INVALID_DIRECT_CONVERSATION_USER_IDS));
+    }
+
+    return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
+        .flatMap(
+            currentUserId ->
+                findDirectConversationMap(currentUserId, Set.of(otherUserId))
+                    .flatMap(
+                        conversationByUserId -> {
+                          String conversationId = conversationByUserId.get(otherUserId);
+                          if (conversationId == null) {
+                            return Mono.error(new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+                          }
+                          return Mono.just(conversationId);
+                        }))
+        .map(
+            conversationId ->
+                ApiResponseUtil.buildApiResponse(
+                    ApiResponseStatus.SUCCESS,
+                    "Direct conversation retrieved successfully",
+                    DirectConversationIdResponse.builder().conversationId(conversationId).build()));
+  }
+
+  /** Resolve direct conversation IDs between current user and many target users. */
+  public Mono<ApiResponseDTO<DirectConversationBatchResponse>> getDirectConversationIdsBatch(
+      List<Long> targetUserIds) {
+    if (targetUserIds == null || targetUserIds.isEmpty()) {
+      return Mono.error(new AppException(ErrorCode.INVALID_DIRECT_CONVERSATION_USER_IDS));
+    }
+
+    return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
+        .flatMap(
+            currentUserId -> {
+              Set<Long> sanitizedTargetUserIds =
+                  targetUserIds.stream()
+                      .filter(userId -> userId != null && !userId.equals(currentUserId))
+                      .collect(Collectors.toCollection(LinkedHashSet::new));
+
+              if (sanitizedTargetUserIds.isEmpty()) {
+                return Mono.just(Map.<Long, String>of());
+              }
+
+              return findDirectConversationMap(currentUserId, sanitizedTargetUserIds);
+            })
+        .map(
+            conversationByUserId -> {
+              List<DirectConversationBatchItemResponse> items =
+                  new ArrayList<>(targetUserIds.size());
+              for (Long userId : targetUserIds) {
+                if (userId == null) {
+                  continue;
+                }
+                items.add(
+                    DirectConversationBatchItemResponse.builder()
+                        .userId(userId)
+                        .conversationId(conversationByUserId.get(userId))
+                        .build());
+              }
+
+              return ApiResponseUtil.buildApiResponse(
+                  ApiResponseStatus.SUCCESS,
+                  "Direct conversations retrieved successfully",
+                  DirectConversationBatchResponse.builder().items(items).build());
+            });
+  }
+
+  private Mono<Map<Long, String>> findDirectConversationMap(Long currentUserId, Set<Long> targetUserIds) {
+    if (currentUserId == null || targetUserIds == null || targetUserIds.isEmpty()) {
+      return Mono.error(new AppException(ErrorCode.INVALID_DIRECT_CONVERSATION_USER_IDS));
+    }
+
+    boolean hasNullUserId = targetUserIds.stream().anyMatch(Objects::isNull);
+    if (hasNullUserId || targetUserIds.contains(currentUserId)) {
+      return Mono.error(new AppException(ErrorCode.INVALID_DIRECT_CONVERSATION_USER_IDS));
+    }
+
+    return participantRepository
+        .findByUserId(currentUserId)
+        .map(Participant::getConversationId)
+        .collect(Collectors.toSet())
+        .flatMap(
+            currentUserConversationIds -> {
+              if (currentUserConversationIds.isEmpty()) {
+                return Mono.just(Map.<Long, String>of());
+              }
+
+              Mono<Set<String>> directConversationIdsMono =
+                  conversationRepository
+                      .findByIdIn(currentUserConversationIds)
+                      .filter(conversation -> conversation.getType() == ConversationType.DIRECT)
+                      .map(Conversation::getId)
+                      .collect(Collectors.toSet());
+
+              return directConversationIdsMono.flatMap(
+                  directConversationIds -> {
+                    if (directConversationIds.isEmpty()) {
+                      return Mono.just(Map.<Long, String>of());
+                    }
+
+                    return participantRepository
+                        .findByConversationIdInAndUserIdIn(directConversationIds, targetUserIds)
+                        .collectMap(Participant::getUserId, Participant::getConversationId);
+                  });
+            });
   }
 
   private Mono<ApiResponseDTO<ConversationPageResponse>> fetchUserConversations(
