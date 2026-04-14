@@ -1,8 +1,11 @@
 package com.bitetogether.chat_service.controller;
 
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchRequest;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchResponse;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
 import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationIdResponse;
 import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
 import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
 import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
@@ -166,6 +169,77 @@ public class ConversationController {
           @RequestParam(required = false)
           Integer limit) {
     return conversationService.getMyConversations(cursor, limit).map(ResponseEntity::ok);
+  }
+
+  @GetMapping("/direct")
+  @Operation(
+      summary = "Get direct conversation ID with current user",
+      description =
+          "Retrieves the conversation ID of an existing DIRECT conversation between current user and another user.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Direct conversation retrieved successfully",
+            content =
+                @Content(schema = @Schema(implementation = DirectConversationIdResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid user IDs",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Direct conversation not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
+      })
+  public Mono<ResponseEntity<ApiResponseDTO<DirectConversationIdResponse>>>
+      getDirectConversationIdBetweenUsers(
+          @Parameter(description = "Other user ID", required = true, example = "101")
+              @RequestParam
+              Long otherUserId) {
+    return conversationService
+        .getDirectConversationIdWithCurrentUser(otherUserId)
+        .map(ResponseEntity::ok);
+  }
+
+  @PostMapping("/direct/batch")
+  @Operation(
+      summary = "Get direct conversation IDs in batch",
+      description =
+          "Resolves direct conversation IDs between current user and each provided user ID in one request.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Direct conversations retrieved successfully",
+            content =
+                @Content(schema = @Schema(implementation = DirectConversationBatchResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid request payload",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
+      })
+  public Mono<ResponseEntity<ApiResponseDTO<DirectConversationBatchResponse>>>
+      getDirectConversationIdsBatch(
+          @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                  description = "List of user IDs to resolve direct conversations with",
+                  required = true,
+                  content =
+                      @Content(schema = @Schema(implementation = DirectConversationBatchRequest.class)))
+              @Valid
+              @RequestBody
+              DirectConversationBatchRequest request) {
+    return conversationService
+        .getDirectConversationIdsBatch(request.getUserIds())
+        .map(ResponseEntity::ok);
   }
 
   // ==================== UPDATE ====================
