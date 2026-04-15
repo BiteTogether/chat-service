@@ -1,10 +1,11 @@
 package com.bitetogether.chat_service.service;
 
+import com.bitetogether.chat_service.dto.conversation.ChatUserSnapshotDTO;
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
-import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchItemResponse;
-import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchResponse;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
 import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchItemResponse;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchResponse;
 import com.bitetogether.chat_service.dto.conversation.DirectConversationIdResponse;
 import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
 import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
@@ -30,8 +31,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -265,7 +266,8 @@ public class ConversationService {
             });
   }
 
-  private Mono<Map<Long, String>> findDirectConversationMap(Long currentUserId, Set<Long> targetUserIds) {
+  private Mono<Map<Long, String>> findDirectConversationMap(
+      Long currentUserId, Set<Long> targetUserIds) {
     if (currentUserId == null || targetUserIds == null || targetUserIds.isEmpty()) {
       return Mono.error(new AppException(ErrorCode.INVALID_DIRECT_CONVERSATION_USER_IDS));
     }
@@ -455,17 +457,24 @@ public class ConversationService {
 
   private Mono<ParticipantDTO> enrichParticipantWithUserSnapshot(Participant participant) {
     ParticipantDTO dto = conversationMapper.toParticipantDTO(participant);
+    dto.setChatUserSnapshot(ChatUserSnapshotDTO.builder().userId(participant.getUserId()).build());
 
     // Fetch user snapshot by userId and enrich the DTO
     return chatUserSnapshotRepository
         .findById(participant.getUserId())
         .map(
             snapshot -> {
-              dto.setUsername(snapshot.getUsername());
-              dto.setAvatarUrl(snapshot.getAvatar());
+              dto.setChatUserSnapshot(
+                  ChatUserSnapshotDTO.builder()
+                      .userId(snapshot.getUserId())
+                      .username(snapshot.getUsername())
+                      .fullName(snapshot.getFullName())
+                      .phoneNumber(snapshot.getPhoneNumber())
+                      .avatar(snapshot.getAvatar())
+                      .build());
               return dto;
             })
-        .defaultIfEmpty(dto); // Return DTO without user info if snapshot not found
+        .defaultIfEmpty(dto); // Return DTO with fallback userId if snapshot not found
   }
 
   private Mono<Long> calculateUnreadCount(String conversationId, Long userId) {
@@ -525,7 +534,7 @@ public class ConversationService {
               participant.setLastReadMessageSequence(0L);
               return participantRepository.save(participant);
             })
-        .map(conversationMapper::toParticipantDTO)
+        .flatMap(this::enrichParticipantWithUserSnapshot)
         .map(
             dto ->
                 ApiResponseUtil.buildApiResponse(
@@ -601,7 +610,7 @@ public class ConversationService {
               participant.setRole(newRole);
               return participantRepository.save(participant);
             })
-        .map(conversationMapper::toParticipantDTO)
+        .flatMap(this::enrichParticipantWithUserSnapshot)
         .map(
             dto ->
                 ApiResponseUtil.buildApiResponse(
