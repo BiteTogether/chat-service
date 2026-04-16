@@ -1,7 +1,7 @@
 package com.bitetogether.chat_service.dto.message;
 
-import com.bitetogether.chat_service.enums.MessageType;
-import com.bitetogether.chat_service.enums.WebSocketAction;
+import com.bitetogether.chat_service.enums.message.MessageType;
+import com.bitetogether.chat_service.enums.websocket.WebSocketAction;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

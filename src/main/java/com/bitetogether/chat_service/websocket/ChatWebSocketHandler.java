@@ -1,13 +1,18 @@
 package com.bitetogether.chat_service.websocket;
 
 import com.bitetogether.chat_service.configuration.websocket.WebSocketAuthService;
-import com.bitetogether.chat_service.dto.message.ChatInboundMessage;
+import com.bitetogether.chat_service.dto.location.LocationUpdateInbound;
+import com.bitetogether.chat_service.dto.message.SendMessageInbound;
+import com.bitetogether.chat_service.dto.websocket.LegacyChatInboundMessage;
+import com.bitetogether.chat_service.dto.websocket.WsEnvelopeDTO;
+import com.bitetogether.chat_service.enums.websocket.WebSocketAction;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
+import com.bitetogether.chat_service.service.LiveLocationService;
 import com.bitetogether.chat_service.service.MessageService;
 import com.bitetogether.common.dto.UserContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,14 +24,29 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ChatWebSocketHandler implements WebSocketHandler {
 
   private final RoomSessionRegistry registry;
   private final ObjectMapper mapper;
   private final MessageService messageService;
+  private final LiveLocationService liveLocationService;
   private final WebSocketAuthService webSocketAuthService;
   private final ParticipantRepository participantRepository;
+
+  public ChatWebSocketHandler(
+      RoomSessionRegistry registry,
+      ObjectMapper mapper,
+      MessageService messageService,
+      LiveLocationService liveLocationService,
+      WebSocketAuthService webSocketAuthService,
+      ParticipantRepository participantRepository) {
+    this.registry = registry;
+    this.mapper = mapper;
+    this.messageService = messageService;
+    this.liveLocationService = liveLocationService;
+    this.webSocketAuthService = webSocketAuthService;
+    this.participantRepository = participantRepository;
+  }
 
   @Override
   @NonNull
@@ -94,40 +114,56 @@ public class ChatWebSocketHandler implements WebSocketHandler {
   }
 
   private Mono<Void> handlePayload(String payload, WebSocketSession session, Long userId) {
-    return Mono.fromCallable(() -> mapper.readValue(payload, ChatInboundMessage.class))
+    return Mono.fromCallable(() -> mapper.readTree(payload))
         .flatMap(
-            msg ->
-                switch (msg.getAction()) {
-                  case SUBSCRIBE -> {
-                    log.info(
-                        "Session {} subscribed to room {}",
-                        session.getId(),
-                        msg.getConversationId());
-                    registry.join(msg.getConversationId(), session);
-                    yield Mono.empty();
-                  }
-                  case UNSUBSCRIBE -> {
-                    log.info(
-                        "Session {} unsubscribed from room {}",
-                        session.getId(),
-                        msg.getConversationId());
-                    registry.leave(msg.getConversationId(), session);
-                    yield Mono.empty();
-                  }
-                  case SEND ->
-                      messageService
-                          .processIncoming(msg, userId)
-                          .then() // Event published in service, RealtimeSubscriber handles
-                          // broadcast
-                          .onErrorResume(
-                              e -> {
-                                log.error("Failed to send message: {}", e.getMessage());
-                                return sendError(
-                                    session, "Failed to send message: " + e.getMessage());
-                              });
-                  case TYPING -> handleTypingIndicator(msg);
-                  case READ -> handleReadReceipt(msg);
-                })
+            raw -> {
+              WsEnvelopeDTO envelope = extractEnvelope(raw);
+              return switch (envelope.action()) {
+                case SUBSCRIBE -> {
+                  log.info(
+                      "Session {} subscribed to room {}",
+                      session.getId(),
+                      envelope.conversationId());
+                  registry.join(envelope.conversationId(), session);
+                  yield Mono.empty();
+                }
+                case UNSUBSCRIBE -> {
+                  log.info(
+                      "Session {} unsubscribed from room {}",
+                      session.getId(),
+                      envelope.conversationId());
+                  registry.leave(envelope.conversationId(), session);
+                  yield Mono.empty();
+                }
+                case SEND -> {
+                  SendMessageInbound inbound = toSendMessageInbound(raw, envelope);
+                  yield messageService
+                      .processIncoming(inbound, userId)
+                      .then() // Event published in service, RealtimeSubscriber handles
+                      // broadcast
+                      .onErrorResume(
+                          e -> {
+                            log.error("Failed to send message: {}", e.getMessage());
+                            return sendError(session, "Failed to send message: " + e.getMessage());
+                          });
+                }
+                case LOCATION_UPDATE -> {
+                  LocationUpdateInbound inbound = toLocationUpdateInbound(raw, envelope);
+                  yield liveLocationService
+                      .handleLocationUpdate(
+                          inbound.conversationId(), userId, inbound.location(), inbound.isSharing())
+                      .onErrorResume(
+                          e -> {
+                            log.error("Failed to process location update: {}", e.getMessage());
+                            return sendError(
+                                session, "Failed to process location update: " + e.getMessage());
+                          });
+                }
+                case VOTE_UPDATE, BILL_UPDATE -> Mono.empty();
+                case TYPING -> handleTypingIndicator(envelope);
+                case READ -> handleReadReceipt(envelope);
+              };
+            })
         .onErrorResume(
             e -> {
               log.error("Failed to parse incoming message: {}", e.getMessage());
@@ -135,15 +171,45 @@ public class ChatWebSocketHandler implements WebSocketHandler {
             });
   }
 
-  private Mono<Void> handleTypingIndicator(ChatInboundMessage msg) {
+  private WsEnvelopeDTO extractEnvelope(JsonNode raw) {
+    String conversationId = raw.path("conversationId").asText(null);
+    String actionRaw = raw.path("action").asText(null);
+    WebSocketAction action =
+        actionRaw == null ? null : mapper.convertValue(actionRaw, WebSocketAction.class);
+    return new WsEnvelopeDTO(conversationId, action);
+  }
+
+  private SendMessageInbound toSendMessageInbound(JsonNode raw, WsEnvelopeDTO envelope) {
+    SendMessageInbound typed = mapper.convertValue(raw, SendMessageInbound.class);
+    if (typed.content() != null || typed.messageType() != null) {
+      return typed;
+    }
+
+    LegacyChatInboundMessage legacy = mapper.convertValue(raw, LegacyChatInboundMessage.class);
+    return new SendMessageInbound(
+        envelope.conversationId(), envelope.action(), legacy.messageType(), legacy.content());
+  }
+
+  private LocationUpdateInbound toLocationUpdateInbound(JsonNode raw, WsEnvelopeDTO envelope) {
+    LocationUpdateInbound typed = mapper.convertValue(raw, LocationUpdateInbound.class);
+    if (typed.location() != null || typed.isSharing() != null) {
+      return typed;
+    }
+
+    LegacyChatInboundMessage legacy = mapper.convertValue(raw, LegacyChatInboundMessage.class);
+    return new LocationUpdateInbound(
+        envelope.conversationId(), envelope.action(), legacy.location(), legacy.isSharing());
+  }
+
+  private Mono<Void> handleTypingIndicator(WsEnvelopeDTO msg) {
     // Feature not yet implemented - typing indicator will be broadcasted via WebSocket in future
-    log.debug("Typing indicator received for conversation: {}", msg.getConversationId());
+    log.debug("Typing indicator received for conversation: {}", msg.conversationId());
     return Mono.empty();
   }
 
-  private Mono<Void> handleReadReceipt(ChatInboundMessage msg) {
+  private Mono<Void> handleReadReceipt(WsEnvelopeDTO msg) {
     // Feature not yet implemented - read receipts will be handled via participant updates in future
-    log.debug("Read receipt received for conversation: {}", msg.getConversationId());
+    log.debug("Read receipt received for conversation: {}", msg.conversationId());
     return Mono.empty();
   }
 

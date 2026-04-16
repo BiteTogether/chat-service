@@ -1,8 +1,8 @@
 package com.bitetogether.chat_service.service;
 
 import com.bitetogether.chat_service.dto.event.CreateConversationEvent;
-import com.bitetogether.chat_service.enums.ConversationType;
-import com.bitetogether.chat_service.enums.Role;
+import com.bitetogether.chat_service.enums.conversation.ConversationType;
+import com.bitetogether.chat_service.enums.conversation.Role;
 import com.bitetogether.chat_service.exception.KafkaEventProcessingException;
 import com.bitetogether.chat_service.model.Conversation;
 import com.bitetogether.chat_service.model.Participant;

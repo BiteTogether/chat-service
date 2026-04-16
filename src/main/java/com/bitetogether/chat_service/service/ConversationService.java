@@ -9,9 +9,10 @@ import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchRes
 import com.bitetogether.chat_service.dto.conversation.DirectConversationIdResponse;
 import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
 import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
+import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
 import com.bitetogether.chat_service.dto.message.ChatMessageDTO;
-import com.bitetogether.chat_service.enums.ConversationType;
-import com.bitetogether.chat_service.enums.Role;
+import com.bitetogether.chat_service.enums.conversation.ConversationType;
+import com.bitetogether.chat_service.enums.conversation.Role;
 import com.bitetogether.chat_service.exception.ErrorCode;
 import com.bitetogether.chat_service.mapper.ConversationMapper;
 import com.bitetogether.chat_service.mapper.MessageMapper;
@@ -62,6 +63,7 @@ public class ConversationService {
   ConversationMapper conversationMapper;
   MessageMapper messageMapper;
   CryptoService cryptoService;
+  LiveLocationService liveLocationService;
 
   /** Create a new conversation with participants. */
   @Transactional
@@ -663,5 +665,15 @@ public class ConversationService {
               }
               return Mono.empty();
             });
+  }
+
+  public Mono<ApiResponseDTO<List<LiveLocationSnapshot>>> getConversationLiveLocations(
+      String conversationId) {
+    return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
+        .flatMap(userId -> liveLocationService.getActiveLocations(conversationId, userId))
+        .map(
+            locations ->
+                ApiResponseUtil.buildApiResponse(
+                    ApiResponseStatus.SUCCESS, "Live locations retrieved successfully", locations));
   }
 }

@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.repository;
 
-import com.bitetogether.chat_service.enums.Role;
+import com.bitetogether.chat_service.enums.conversation.Role;
 import com.bitetogether.chat_service.model.Participant;
 import java.util.Set;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;

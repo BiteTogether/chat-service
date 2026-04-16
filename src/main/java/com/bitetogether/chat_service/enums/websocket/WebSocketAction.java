@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.enums;
+package com.bitetogether.chat_service.enums.websocket;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -17,5 +17,14 @@ public enum WebSocketAction {
   TYPING,
 
   @Schema(description = "Mark messages as read")
-  READ
+  READ,
+
+  @Schema(description = "Share live location update in a conversation room")
+  LOCATION_UPDATE,
+
+  @Schema(description = "Vote session realtime updates in a conversation room")
+  VOTE_UPDATE,
+
+  @Schema(description = "Bill session realtime updates in a conversation room")
+  BILL_UPDATE
 }

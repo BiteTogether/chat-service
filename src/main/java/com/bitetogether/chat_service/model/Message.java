@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.model;
 
-import com.bitetogether.chat_service.enums.MessageType;
+import com.bitetogether.chat_service.enums.message.MessageType;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;

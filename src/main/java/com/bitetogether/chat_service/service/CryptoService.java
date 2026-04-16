@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.service;
 
-import com.bitetogether.chat_service.enums.EncryptedPayload;
+import com.bitetogether.chat_service.enums.crypto.EncryptedPayload;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;

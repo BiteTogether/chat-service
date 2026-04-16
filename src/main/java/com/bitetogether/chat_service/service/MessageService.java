@@ -1,12 +1,13 @@
 package com.bitetogether.chat_service.service;
 
-import com.bitetogether.chat_service.dto.message.ChatInboundMessage;
 import com.bitetogether.chat_service.dto.message.ChatMessageDTO;
 import com.bitetogether.chat_service.dto.message.MessagePageResponse;
+import com.bitetogether.chat_service.dto.message.MessageSendRequest;
+import com.bitetogether.chat_service.dto.message.SendMessageInbound;
 import com.bitetogether.chat_service.dto.message.UpdateMessageRequest;
-import com.bitetogether.chat_service.enums.MessageCreatedEvent;
-import com.bitetogether.chat_service.enums.MessageDeletedEvent;
-import com.bitetogether.chat_service.enums.MessageUpdatedEvent;
+import com.bitetogether.chat_service.enums.message.MessageCreatedEvent;
+import com.bitetogether.chat_service.enums.message.MessageDeletedEvent;
+import com.bitetogether.chat_service.enums.message.MessageUpdatedEvent;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.bitetogether.chat_service.exception.ErrorCode;
 import com.bitetogether.chat_service.mapper.MessageMapper;
@@ -47,17 +48,21 @@ public class MessageService {
 
   // ==================== CREATE ====================
 
-  /** Process incoming message from REST API (uses reactive context for user ID). */
-  public Mono<ApiResponseDTO<ChatMessageDTO>> processIncoming(ChatInboundMessage inbound) {
+  public Mono<ApiResponseDTO<ChatMessageDTO>> processIncoming(MessageSendRequest request) {
+    SendMessageInbound inbound =
+        new SendMessageInbound(
+            request.getConversationId(),
+            com.bitetogether.chat_service.enums.websocket.WebSocketAction.SEND,
+            request.getMessageType(),
+            request.getContent());
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
         .flatMap(senderId -> processIncoming(inbound, senderId));
   }
 
-  /** Process incoming message from WebSocket (senderId passed directly). */
   public Mono<ApiResponseDTO<ChatMessageDTO>> processIncoming(
-      ChatInboundMessage inbound, Long senderId) {
-    return validateMember(inbound.getConversationId(), senderId)
-        .then(sequenceService.nextSeq(inbound.getConversationId()))
+      SendMessageInbound inbound, Long senderId) {
+    return validateMember(inbound.conversationId(), senderId)
+        .then(sequenceService.nextSeq(inbound.conversationId()))
         .flatMap(seq -> buildMessage(inbound, senderId, seq))
         .flatMap(messageRepository::save)
         .flatMap(
@@ -318,17 +323,17 @@ public class MessageService {
     return Mono.empty();
   }
 
-  private Mono<Message> buildMessage(ChatInboundMessage inbound, Long senderId, Long seq) {
+  private Mono<Message> buildMessage(SendMessageInbound inbound, Long senderId, Long seq) {
 
     return cryptoService
-        .encrypt(inbound.getContent())
+        .encrypt(inbound.content())
         .map(
             encrypted ->
                 Message.builder()
-                    .conversationId(inbound.getConversationId())
+                    .conversationId(inbound.conversationId())
                     .sequence(seq)
                     .senderId(senderId)
-                    .type(inbound.getMessageType())
+                    .type(inbound.messageType())
                     .ciphertext(encrypted.ciphertext())
                     .iv(encrypted.iv())
                     .authTag(encrypted.authTag())

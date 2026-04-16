@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.model;
 
-import com.bitetogether.chat_service.enums.Role;
+import com.bitetogether.chat_service.enums.conversation.Role;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.springframework.data.annotation.Id;

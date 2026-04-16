@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.model;
 
-import com.bitetogether.chat_service.enums.ConversationType;
+import com.bitetogether.chat_service.enums.conversation.ConversationType;
 import java.time.LocalDateTime;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
