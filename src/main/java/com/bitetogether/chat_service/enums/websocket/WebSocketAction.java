@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.enums;
+package com.bitetogether.chat_service.enums.websocket;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

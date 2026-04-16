@@ -1,8 +1,8 @@
 package com.bitetogether.chat_service.model;
 
-import com.bitetogether.chat_service.enums.BillShareStatus;
-import com.bitetogether.chat_service.enums.BillSplitType;
-import com.bitetogether.chat_service.enums.BillStatus;
+import com.bitetogether.chat_service.enums.bill.BillShareStatus;
+import com.bitetogether.chat_service.enums.bill.BillSplitType;
+import com.bitetogether.chat_service.enums.bill.BillStatus;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.Data;

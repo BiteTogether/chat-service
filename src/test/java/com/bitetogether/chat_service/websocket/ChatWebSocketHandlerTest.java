@@ -7,7 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.bitetogether.chat_service.configuration.websocket.WebSocketAuthService;
-import com.bitetogether.chat_service.dto.message.ChatInboundMessage.LocationPayload;
+import com.bitetogether.chat_service.dto.location.LocationPayload;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
 import com.bitetogether.chat_service.service.LiveLocationService;
 import com.bitetogether.chat_service.service.MessageService;

@@ -9,7 +9,7 @@ import com.bitetogether.chat_service.dto.conversation.DirectConversationIdRespon
 import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
 import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
 import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
-import com.bitetogether.chat_service.enums.Role;
+import com.bitetogether.chat_service.enums.conversation.Role;
 import com.bitetogether.chat_service.service.ConversationService;
 import com.bitetogether.common.dto.ApiResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;

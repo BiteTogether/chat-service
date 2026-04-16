@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.enums;
+package com.bitetogether.chat_service.enums.location;
 
 import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
 

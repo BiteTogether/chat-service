@@ -1,11 +1,11 @@
 package com.bitetogether.chat_service.event;
 
-import com.bitetogether.chat_service.enums.BillSessionRealtimeEvent;
-import com.bitetogether.chat_service.enums.LocationUpdatedEvent;
-import com.bitetogether.chat_service.enums.MessageCreatedEvent;
-import com.bitetogether.chat_service.enums.MessageDeletedEvent;
-import com.bitetogether.chat_service.enums.MessageUpdatedEvent;
-import com.bitetogether.chat_service.enums.VoteSessionRealtimeEvent;
+import com.bitetogether.chat_service.enums.bill.BillSessionRealtimeEvent;
+import com.bitetogether.chat_service.enums.location.LocationUpdatedEvent;
+import com.bitetogether.chat_service.enums.message.MessageCreatedEvent;
+import com.bitetogether.chat_service.enums.message.MessageDeletedEvent;
+import com.bitetogether.chat_service.enums.message.MessageUpdatedEvent;
+import com.bitetogether.chat_service.enums.vote.VoteSessionRealtimeEvent;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;

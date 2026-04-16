@@ -1,8 +1,8 @@
 package com.bitetogether.chat_service.controller;
 
-import com.bitetogether.chat_service.dto.message.ChatInboundMessage;
 import com.bitetogether.chat_service.dto.message.ChatMessageDTO;
 import com.bitetogether.chat_service.dto.message.MessagePageResponse;
+import com.bitetogether.chat_service.dto.message.MessageSendRequest;
 import com.bitetogether.chat_service.dto.message.UpdateMessageRequest;
 import com.bitetogether.chat_service.service.MessageService;
 import com.bitetogether.common.dto.ApiResponseDTO;
@@ -70,10 +70,10 @@ public class MessageController {
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Message details to be sent",
               required = true,
-              content = @Content(schema = @Schema(implementation = ChatInboundMessage.class)))
+              content = @Content(schema = @Schema(implementation = MessageSendRequest.class)))
           @Valid
           @RequestBody
-          ChatInboundMessage inbound) {
+          MessageSendRequest inbound) {
     return messageService
         .processIncoming(inbound)
         .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));

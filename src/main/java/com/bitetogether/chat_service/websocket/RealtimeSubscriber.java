@@ -1,7 +1,7 @@
 package com.bitetogether.chat_service.websocket;
 
 import com.bitetogether.chat_service.dto.message.ChatMessageDTO;
-import com.bitetogether.chat_service.enums.WebSocketAction;
+import com.bitetogether.chat_service.enums.websocket.WebSocketAction;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

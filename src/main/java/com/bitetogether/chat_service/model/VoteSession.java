@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.model;
 
-import com.bitetogether.chat_service.enums.VoteSessionStatus;
+import com.bitetogether.chat_service.enums.vote.VoteSessionStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

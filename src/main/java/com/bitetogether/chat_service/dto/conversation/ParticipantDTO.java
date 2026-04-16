@@ -1,7 +1,7 @@
 package com.bitetogether.chat_service.dto.conversation;
 
 import com.bitetogether.chat_service.dto.base.BaseResponse;
-import com.bitetogether.chat_service.enums.Role;
+import com.bitetogether.chat_service.enums.conversation.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;

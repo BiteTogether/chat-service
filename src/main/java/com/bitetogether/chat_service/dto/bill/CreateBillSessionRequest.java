@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.dto.bill;
 
-import com.bitetogether.chat_service.enums.BillSplitType;
+import com.bitetogether.chat_service.enums.bill.BillSplitType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

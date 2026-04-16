@@ -1,7 +1,7 @@
 package com.bitetogether.chat_service.dto.message;
 
 import com.bitetogether.chat_service.dto.base.BaseResponse;
-import com.bitetogether.chat_service.enums.MessageType;
+import com.bitetogether.chat_service.enums.message.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;

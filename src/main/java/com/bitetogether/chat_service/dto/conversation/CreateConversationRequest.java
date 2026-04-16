@@ -1,6 +1,6 @@
 package com.bitetogether.chat_service.dto.conversation;
 
-import com.bitetogether.chat_service.enums.ConversationType;
+import com.bitetogether.chat_service.enums.conversation.ConversationType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

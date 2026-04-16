@@ -1,8 +1,8 @@
 package com.bitetogether.chat_service.service;
 
 import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
-import com.bitetogether.chat_service.dto.message.ChatInboundMessage.LocationPayload;
-import com.bitetogether.chat_service.enums.LocationUpdatedEvent;
+import com.bitetogether.chat_service.dto.location.LocationPayload;
+import com.bitetogether.chat_service.enums.location.LocationUpdatedEvent;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.bitetogether.chat_service.exception.ErrorCode;
 import com.bitetogether.chat_service.repository.ParticipantRepository;

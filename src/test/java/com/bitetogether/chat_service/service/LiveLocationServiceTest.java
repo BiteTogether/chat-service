@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
-import com.bitetogether.chat_service.dto.message.ChatInboundMessage.LocationPayload;
+import com.bitetogether.chat_service.dto.location.LocationPayload;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
 import com.bitetogether.common.exception.AppException;
