@@ -71,7 +71,8 @@ public class BillController {
   @PostMapping("/{billSessionId}/finalize")
   @Operation(
       summary = "Finalize bill session",
-      description = "Finalizes draft bill after validating total split integrity.")
+      description =
+          "Finalizes draft bill after validating total split integrity. Only vote creator can finalize.")
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -85,6 +86,10 @@ public class BillController {
         @ApiResponse(
             responseCode = "404",
             description = "Bill session not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Only vote creator can finalize bill",
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
   public Mono<ResponseEntity<ApiResponseDTO<BillSessionDTO>>> finalizeBillSession(
@@ -112,6 +117,10 @@ public class BillController {
         @ApiResponse(
             responseCode = "404",
             description = "Bill session or bill share not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Only vote creator can confirm for other members",
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
   public Mono<ResponseEntity<ApiResponseDTO<BillSessionDTO>>> markBillSharePaid(

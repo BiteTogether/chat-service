@@ -149,7 +149,7 @@ REST handlers return `ApiResponseDTO<T>` with common fields such as status, mess
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/v1/bills` | Create bill session (`EQUAL` or `CUSTOM` split for vote participants) |
-| `POST` | `/api/v1/bills/{billSessionId}/finalize` | Finalize draft bill |
+| `POST` | `/api/v1/bills/{billSessionId}/finalize` | Finalize draft bill (vote creator only) |
 | `POST` | `/api/v1/bills/{billSessionId}/payments` | Confirm payment (self confirm, or creator confirms member) |
 | `GET` | `/api/v1/bills/{billSessionId}` | Get bill session by ID |
 | `GET` | `/api/v1/bills/conversation/{conversationId}` | Get bill sessions in conversation |
@@ -232,9 +232,11 @@ Outbound event examples:
 Bill behavior notes:
 
 - Bill participants are taken from vote participants (`voteSession.votes` user IDs).
-- `EQUAL`: service auto-calculates per-user amount.
+- `EQUAL`: service auto-calculates per-user amount from vote participants.
 - `CUSTOM`: only vote creator can create the bill; provided split amounts must match total exactly.
+- Finalize bill: only vote creator can finalize.
 - Payment confirmation is boolean-style (paid/unpaid), no partial accumulation in simplified flow.
+- Payment confirm permission: each user confirms self; vote creator can confirm for another member by `userId`.
 
 If parsing/auth fails, the socket emits:
 

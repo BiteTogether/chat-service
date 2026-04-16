@@ -7,7 +7,7 @@ import com.bitetogether.chat_service.enums.vote.VoteSessionRealtimeEvent;
 import com.bitetogether.chat_service.enums.vote.VoteSessionStatus;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.bitetogether.chat_service.exception.ErrorCode;
-import com.bitetogether.chat_service.model.Participant;
+import com.bitetogether.chat_service.mapper.VoteMapper;
 import com.bitetogether.chat_service.model.VoteSession;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
 import com.bitetogether.chat_service.repository.VoteSessionRepository;
@@ -37,6 +37,7 @@ public class VoteService {
   VoteSessionRepository voteSessionRepository;
   ParticipantRepository participantRepository;
   DomainEventPublisher domainEventPublisher;
+  VoteMapper voteMapper;
 
   public Mono<ApiResponseDTO<VoteSessionDTO>> createVoteSession(CreateVoteSessionRequest request) {
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
@@ -45,7 +46,7 @@ public class VoteService {
                 validateParticipant(request.getConversationId(), userId)
                     .then(buildVoteSession(request, userId))
                     .flatMap(voteSessionRepository::save)
-                    .map(this::toDto)
+                    .map(voteMapper::toDto)
                     .doOnNext(
                         dto ->
                             domainEventPublisher.publishVoteSessionEvent(
@@ -73,7 +74,7 @@ public class VoteService {
                                 .thenReturn(session))
                     .flatMap(session -> castVoteInternal(session, userId, request.getOptionId()))
                     .flatMap(voteSessionRepository::save)
-                    .map(this::toDto)
+                    .map(voteMapper::toDto)
                     .doOnNext(
                         dto ->
                             domainEventPublisher.publishVoteSessionEvent(
@@ -97,7 +98,7 @@ public class VoteService {
                             validateParticipant(session.getConversationId(), userId)
                                 .then(closeSessionInternal(session)))
                     .flatMap(voteSessionRepository::save)
-                    .map(this::toDto)
+                    .map(voteMapper::toDto)
                     .doOnNext(
                         dto ->
                             domainEventPublisher.publishVoteSessionEvent(
@@ -122,7 +123,7 @@ public class VoteService {
                         session ->
                             validateParticipant(session.getConversationId(), userId)
                                 .thenReturn(session))
-                    .map(this::toDto)
+                    .map(voteMapper::toDto)
                     .map(
                         dto ->
                             ApiResponseUtil.buildApiResponse(
@@ -140,7 +141,7 @@ public class VoteService {
                     .thenMany(
                         voteSessionRepository.findByConversationIdOrderByCreatedAtDesc(
                             conversationId))
-                    .map(this::toDto)
+                    .map(voteMapper::toDto)
                     .collectList()
                     .map(
                         sessions ->
@@ -227,47 +228,9 @@ public class VoteService {
                     : Mono.error(new AppException(ErrorCode.NOT_A_PARTICIPANT)));
   }
 
-  private VoteSessionDTO toDto(VoteSession session) {
-    return VoteSessionDTO.builder()
-        .id(session.getId())
-        .conversationId(session.getConversationId())
-        .createdBy(session.getCreatorId())
-        .status(session.getStatus())
-        .options(
-            session.getOptions() == null
-                ? List.of()
-                : session.getOptions().stream()
-                    .map(
-                        option ->
-                            VoteSessionDTO.VoteOptionDTO.builder()
-                                .id(option.getId())
-                                .placeId(option.getPlaceId())
-                                .name(option.getName())
-                                .address(option.getAddress())
-                                .lat(option.getLat())
-                                .lng(option.getLng())
-                                .label(option.getLabel())
-                                .build())
-                    .toList())
-        .votes(
-            session.getVotes() == null
-                ? java.util.Map.of()
-                : java.util.Map.copyOf(session.getVotes()))
-        .winnerOptionId(session.getWinnerOptionId())
-        .closedAt(session.getClosedAt())
-        .build();
-  }
-
-  public Mono<List<Long>> resolveEligibleParticipantIds(
-      String conversationId, String voteSessionId) {
-    Mono<List<Long>> fromParticipants =
-        participantRepository
-            .findByConversationId(conversationId)
-            .map(Participant::getUserId)
-            .collectList();
-
+  public Mono<List<Long>> resolveVoteParticipantIds(String conversationId, String voteSessionId) {
     if (voteSessionId == null || voteSessionId.isBlank()) {
-      return fromParticipants;
+      return Mono.error(new AppException(ErrorCode.VOTE_SESSION_NOT_FOUND));
     }
 
     return voteSessionRepository

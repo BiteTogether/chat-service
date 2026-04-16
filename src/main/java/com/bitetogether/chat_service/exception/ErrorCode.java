@@ -55,6 +55,10 @@ public enum ErrorCode implements BaseErrorCode {
   BILL_SESSION_NOT_FINALIZED(ApiResponseStatus.BAD_REQUEST, "Bill session is not finalized"),
   BILL_CUSTOM_SPLIT_REQUIRES_VOTE_CREATOR(
       ApiResponseStatus.FORBIDDEN, "Only vote creator can create custom bill split"),
+  BILL_FINALIZE_UNAUTHORIZED(
+      ApiResponseStatus.FORBIDDEN, "Only vote creator can finalize this bill"),
+  BILL_PAYMENT_UNAUTHORIZED(
+      ApiResponseStatus.FORBIDDEN, "You are not authorized to confirm this bill payment"),
   BILL_SHARE_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "Bill share not found"),
   BILL_PAYMENT_EXCEEDS_SHARE(ApiResponseStatus.BAD_REQUEST, "Paid amount exceeds assigned share"),
   BILL_PARTICIPANTS_EMPTY(

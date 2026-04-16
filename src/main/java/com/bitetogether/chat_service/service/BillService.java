@@ -9,6 +9,7 @@ import com.bitetogether.chat_service.enums.bill.BillSplitType;
 import com.bitetogether.chat_service.enums.bill.BillStatus;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.bitetogether.chat_service.exception.ErrorCode;
+import com.bitetogether.chat_service.mapper.BillMapper;
 import com.bitetogether.chat_service.model.BillSession;
 import com.bitetogether.chat_service.repository.BillSessionRepository;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
@@ -42,6 +43,7 @@ public class BillService {
   ParticipantRepository participantRepository;
   VoteService voteService;
   DomainEventPublisher domainEventPublisher;
+  BillMapper billMapper;
 
   public Mono<ApiResponseDTO<BillSessionDTO>> createBillSession(CreateBillSessionRequest request) {
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
@@ -49,7 +51,7 @@ public class BillService {
             userId ->
                 validateParticipant(request.getConversationId(), userId)
                     .then(
-                        voteService.resolveEligibleParticipantIds(
+                        voteService.resolveVoteParticipantIds(
                             request.getConversationId(), request.getVoteSessionId()))
                     .flatMap(
                         participantIds ->
@@ -59,7 +61,7 @@ public class BillService {
                         billSession ->
                             billSessionRepository
                                 .save(billSession)
-                                .map(this::toDto)
+                                .map(billMapper::toDto)
                                 .doOnNext(
                                     dto ->
                                         domainEventPublisher.publishBillSessionEvent(
@@ -88,6 +90,17 @@ public class BillService {
                     : ex);
   }
 
+  private Mono<Void> validateVoteCreatorForBill(BillSession session, Long userId) {
+    return voteService
+        .validateVoteSessionCreator(session.getConversationId(), session.getVoteSessionId(), userId)
+        .onErrorMap(
+            AppException.class,
+            ex ->
+                ex.getErrorCode() == ErrorCode.CONVERSATION_UPDATE_UNAUTHORIZED
+                    ? new AppException(ErrorCode.BILL_FINALIZE_UNAUTHORIZED)
+                    : ex);
+  }
+
   public Mono<ApiResponseDTO<BillSessionDTO>> finalizeBillSession(String billSessionId) {
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
         .flatMap(
@@ -98,10 +111,12 @@ public class BillService {
                     .flatMap(
                         session ->
                             validateParticipant(session.getConversationId(), userId)
-                                .thenReturn(session))
+                                .then(
+                                    validateVoteCreatorForBill(session, userId)
+                                        .thenReturn(session)))
                     .flatMap(this::finalizeInternal)
                     .flatMap(billSessionRepository::save)
-                    .map(this::toDto)
+                    .map(billMapper::toDto)
                     .doOnNext(
                         dto ->
                             domainEventPublisher.publishBillSessionEvent(
@@ -129,7 +144,7 @@ public class BillService {
                                 .thenReturn(session))
                     .flatMap(session -> markPaidInternal(session, userId, request.getUserId()))
                     .flatMap(billSessionRepository::save)
-                    .map(this::toDto)
+                    .map(billMapper::toDto)
                     .doOnNext(
                         dto -> {
                           domainEventPublisher.publishBillSessionEvent(
@@ -160,7 +175,7 @@ public class BillService {
                         session ->
                             validateParticipant(session.getConversationId(), userId)
                                 .thenReturn(session))
-                    .map(this::toDto)
+                    .map(billMapper::toDto)
                     .map(
                         dto ->
                             ApiResponseUtil.buildApiResponse(
@@ -178,7 +193,7 @@ public class BillService {
                     .thenMany(
                         billSessionRepository.findByConversationIdOrderByCreatedAtDesc(
                             conversationId))
-                    .map(this::toDto)
+                    .map(billMapper::toDto)
                     .collectList()
                     .map(
                         sessions ->
@@ -303,7 +318,7 @@ public class BillService {
 
     Long targetUserId = explicitUserId != null ? explicitUserId : requesterId;
     if (explicitUserId != null && !requesterId.equals(session.getCreatorId())) {
-      return Mono.error(new AppException(ErrorCode.CONVERSATION_UPDATE_UNAUTHORIZED));
+      return Mono.error(new AppException(ErrorCode.BILL_PAYMENT_UNAUTHORIZED));
     }
 
     BillSession.BillShare target =
@@ -333,32 +348,5 @@ public class BillService {
                 Boolean.TRUE.equals(exists)
                     ? Mono.empty()
                     : Mono.error(new AppException(ErrorCode.NOT_A_PARTICIPANT)));
-  }
-
-  private BillSessionDTO toDto(BillSession session) {
-    return BillSessionDTO.builder()
-        .id(session.getId())
-        .conversationId(session.getConversationId())
-        .voteSessionId(session.getVoteSessionId())
-        .createdBy(session.getCreatorId())
-        .currency(session.getCurrency())
-        .totalAmount(session.getTotalAmount())
-        .status(session.getStatus())
-        .splitType(session.getSplitType())
-        .shares(
-            session.getShares() == null
-                ? List.of()
-                : session.getShares().stream()
-                    .map(
-                        share ->
-                            BillSessionDTO.BillShareDTO.builder()
-                                .userId(share.getUserId())
-                                .amount(share.getAmount())
-                                .paidAmount(share.getPaidAmount())
-                                .paid(share.getPaid())
-                                .status(share.getStatus())
-                                .build())
-                    .toList())
-        .build();
   }
 }
