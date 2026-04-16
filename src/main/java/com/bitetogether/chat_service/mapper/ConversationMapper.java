@@ -37,8 +37,7 @@ public interface ConversationMapper {
     return dto;
   }
 
-  @Mapping(target = "username", ignore = true)
-  @Mapping(target = "avatarUrl", ignore = true)
+  @Mapping(target = "chatUserSnapshot", ignore = true)
   @Mapping(target = "createdAt", source = "createdAt")
   @Mapping(target = "updatedAt", source = "updatedAt")
   @Mapping(target = "createdBy", source = "createdBy")

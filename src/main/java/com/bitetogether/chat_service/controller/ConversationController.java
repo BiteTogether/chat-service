@@ -1,10 +1,10 @@
 package com.bitetogether.chat_service.controller;
 
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
-import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchRequest;
-import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchResponse;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
 import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchRequest;
+import com.bitetogether.chat_service.dto.conversation.DirectConversationBatchResponse;
 import com.bitetogether.chat_service.dto.conversation.DirectConversationIdResponse;
 import com.bitetogether.chat_service.dto.conversation.ParticipantDTO;
 import com.bitetogether.chat_service.dto.conversation.UpdateConversationRequest;
@@ -198,8 +198,7 @@ public class ConversationController {
       })
   public Mono<ResponseEntity<ApiResponseDTO<DirectConversationIdResponse>>>
       getDirectConversationIdBetweenUsers(
-          @Parameter(description = "Other user ID", required = true, example = "101")
-              @RequestParam
+          @Parameter(description = "Other user ID", required = true, example = "101") @RequestParam
               Long otherUserId) {
     return conversationService
         .getDirectConversationIdWithCurrentUser(otherUserId)
@@ -233,7 +232,8 @@ public class ConversationController {
                   description = "List of user IDs to resolve direct conversations with",
                   required = true,
                   content =
-                      @Content(schema = @Schema(implementation = DirectConversationBatchRequest.class)))
+                      @Content(
+                          schema = @Schema(implementation = DirectConversationBatchRequest.class)))
               @Valid
               @RequestBody
               DirectConversationBatchRequest request) {

@@ -15,7 +15,8 @@ public interface ParticipantRepository extends ReactiveMongoRepository<Participa
 
   Flux<Participant> findByUserId(Long userId);
 
-  Flux<Participant> findByConversationIdInAndUserIdIn(Set<String> conversationIds, Set<Long> userIds);
+  Flux<Participant> findByConversationIdInAndUserIdIn(
+      Set<String> conversationIds, Set<Long> userIds);
 
   Mono<Participant> findByConversationIdAndUserId(String conversationId, Long userId);
 
