@@ -91,8 +91,6 @@ public class MessageService {
         .then();
   }
 
-  // ==================== READ ====================
-
   /**
    * Get messages by conversation ID with cursor-based pagination. Messages are returned in
    * descending order (newest first). Automatically marks fetched messages as read for the current
@@ -211,8 +209,6 @@ public class MessageService {
                     ApiResponseStatus.SUCCESS, "Message retrieved successfully", dto));
   }
 
-  // ==================== UPDATE ====================
-
   /**
    * Update a message content. Only the sender can update their own message. Publishes a
    * MessageUpdatedEvent for real-time updates.
@@ -257,8 +253,6 @@ public class MessageService {
                 ApiResponseUtil.buildApiResponse(
                     ApiResponseStatus.SUCCESS, "Message updated successfully", dto));
   }
-
-  // ==================== DELETE ====================
 
   /**
    * Delete a message. Only the sender can delete their own message. Publishes a MessageDeletedEvent

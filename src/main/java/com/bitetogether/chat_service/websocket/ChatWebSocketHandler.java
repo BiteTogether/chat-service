@@ -9,10 +9,12 @@ import com.bitetogether.chat_service.enums.websocket.WebSocketAction;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
 import com.bitetogether.chat_service.service.LiveLocationService;
 import com.bitetogether.chat_service.service.MessageService;
+import com.bitetogether.chat_service.service.UserStateService;
 import com.bitetogether.common.dto.UserContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.access.AccessDeniedException;
@@ -24,6 +26,7 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class ChatWebSocketHandler implements WebSocketHandler {
 
   private final RoomSessionRegistry registry;
@@ -32,21 +35,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
   private final LiveLocationService liveLocationService;
   private final WebSocketAuthService webSocketAuthService;
   private final ParticipantRepository participantRepository;
-
-  public ChatWebSocketHandler(
-      RoomSessionRegistry registry,
-      ObjectMapper mapper,
-      MessageService messageService,
-      LiveLocationService liveLocationService,
-      WebSocketAuthService webSocketAuthService,
-      ParticipantRepository participantRepository) {
-    this.registry = registry;
-    this.mapper = mapper;
-    this.messageService = messageService;
-    this.liveLocationService = liveLocationService;
-    this.webSocketAuthService = webSocketAuthService;
-    this.participantRepository = participantRepository;
-  }
+  private final UserStateService userStateService;
 
   @Override
   @NonNull
@@ -57,8 +46,10 @@ public class ChatWebSocketHandler implements WebSocketHandler {
               Long userId = userContext.getUserId();
               log.info("WebSocket connected: sessionId={}, userId={}", session.getId(), userId);
 
-              // Auto-subscribe to all user's conversations
-              return subscribeToAllConversations(session, userId)
+              // Set user state to BACKGROUND as safe default when WebSocket connects
+              return userStateService
+                  .markBackground(userId)
+                  .then(subscribeToAllConversations(session, userId))
                   .then(
                       session
                           .receive()
@@ -82,7 +73,14 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                                     userId);
                                 registry.leave(session);
                               })
-                          .then());
+                          .then())
+                  // Mark user as offline after WebSocket disconnects
+                  .then(userStateService.markOffline(userId))
+                  .onErrorResume(
+                      e -> {
+                        log.error("Failed to mark user {} offline: {}", userId, e.getMessage());
+                        return Mono.empty();
+                      });
             })
         .onErrorResume(
             e -> {
@@ -139,8 +137,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                   SendMessageInbound inbound = toSendMessageInbound(raw, envelope);
                   yield messageService
                       .processIncoming(inbound, userId)
-                      .then() // Event published in service, RealtimeSubscriber handles
-                      // broadcast
+                      .then() // Event published in service, RealtimeSubscriber handles broadcast
                       .onErrorResume(
                           e -> {
                             log.error("Failed to send message: {}", e.getMessage());
