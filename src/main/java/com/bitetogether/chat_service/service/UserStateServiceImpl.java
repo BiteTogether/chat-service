@@ -2,40 +2,55 @@ package com.bitetogether.chat_service.service;
 
 import static com.bitetogether.chat_service.util.Constants.RedisKeys.USER_STATE_PREFIX;
 
+import com.bitetogether.chat_service.configuration.redis.RedisProperties;
 import com.bitetogether.chat_service.enums.websocket.UserState;
 import java.time.Duration;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserStateServiceImpl implements UserStateService {
 
-  private static final Duration STATE_TTL = Duration.ofMinutes(30);
-
   private final ReactiveStringRedisTemplate redisTemplate;
+  private final RedisProperties redisProperties;
+  private final Scheduler virtualThreadScheduler;
+
+  public UserStateServiceImpl(
+      ReactiveStringRedisTemplate redisTemplate,
+      RedisProperties redisProperties,
+      @Qualifier("virtualThreadScheduler") Scheduler virtualThreadScheduler) {
+    this.redisTemplate = redisTemplate;
+    this.redisProperties = redisProperties;
+    this.virtualThreadScheduler = virtualThreadScheduler;
+  }
 
   @Override
   public Mono<Void> setUserState(Long userId, UserState state) {
     String key = USER_STATE_PREFIX + userId;
-    log.info("Setting user {} state to {}", userId, state);
+    Duration ttl = redisProperties.getUserState().getTtl();
+
+    log.debug("Setting user {} state to {} with TTL {} on virtual thread", userId, state, ttl);
 
     return redisTemplate
         .opsForValue()
-        .set(key, state.name(), STATE_TTL)
+        .set(key, state.name(), ttl)
         .doOnSuccess(
             success -> {
               if (Boolean.TRUE.equals(success)) {
-                log.debug(
-                    "Successfully set user {} state to {} with TTL {}", userId, state, STATE_TTL);
+                log.debug("Successfully set user {} state to {} with TTL {}", userId, state, ttl);
               } else {
                 log.warn("Failed to set user {} state to {}", userId, state);
               }
             })
+        .doOnError(
+            error -> log.error("Failed to set user {} state: {}", userId, error.getMessage()))
+        .subscribeOn(
+            virtualThreadScheduler) // Run on virtual thread pool for optimal I/O performance
         .then();
   }
 

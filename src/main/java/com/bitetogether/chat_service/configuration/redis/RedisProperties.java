@@ -1,4 +1,4 @@
-package com.bitetogether.chat_service.configuration;
+package com.bitetogether.chat_service.configuration.redis;
 
 import java.time.Duration;
 import lombok.Data;

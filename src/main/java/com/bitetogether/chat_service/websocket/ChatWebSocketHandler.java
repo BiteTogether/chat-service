@@ -46,10 +46,19 @@ public class ChatWebSocketHandler implements WebSocketHandler {
               Long userId = userContext.getUserId();
               log.info("WebSocket connected: sessionId={}, userId={}", session.getId(), userId);
 
-              // Set user state to BACKGROUND as safe default when WebSocket connects
-              return userStateService
+              // Fire-and-forget: Set user state to BACKGROUND
+              userStateService
                   .markBackground(userId)
-                  .then(subscribeToAllConversations(session, userId))
+                  .doOnError(
+                      error ->
+                          log.error(
+                              "Failed to mark user {} as background: {}",
+                              userId,
+                              error.getMessage()))
+                  .onErrorResume(e -> Mono.empty())
+                  .subscribe();
+
+              return subscribeToAllConversations(session, userId)
                   .then(
                       session
                           .receive()
@@ -72,15 +81,20 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                                     session.getId(),
                                     userId);
                                 registry.leave(session);
+
+                                // Fire-and-forget: Mark user as offline
+                                userStateService
+                                    .markOffline(userId)
+                                    .doOnError(
+                                        error ->
+                                            log.error(
+                                                "Failed to mark user {} offline: {}",
+                                                userId,
+                                                error.getMessage()))
+                                    .onErrorResume(e -> Mono.empty())
+                                    .subscribe();
                               })
-                          .then())
-                  // Mark user as offline after WebSocket disconnects
-                  .then(userStateService.markOffline(userId))
-                  .onErrorResume(
-                      e -> {
-                        log.error("Failed to mark user {} offline: {}", userId, e.getMessage());
-                        return Mono.empty();
-                      });
+                          .then());
             })
         .onErrorResume(
             e -> {
