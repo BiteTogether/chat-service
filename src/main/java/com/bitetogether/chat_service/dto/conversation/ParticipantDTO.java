@@ -30,6 +30,4 @@ public class ParticipantDTO extends BaseResponse {
   @Schema(description = "Last read message sequence number", example = "42")
   private Long lastReadMessageSequence;
 
-  @Schema(description = "Joined timestamp")
-  private LocalDateTime joinedAt;
 }
