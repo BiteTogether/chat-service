@@ -11,6 +11,7 @@ import com.bitetogether.chat_service.dto.location.LocationPayload;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
 import com.bitetogether.chat_service.service.LiveLocationService;
 import com.bitetogether.chat_service.service.MessageService;
+import com.bitetogether.chat_service.service.UserStateService;
 import com.bitetogether.common.dto.UserContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -38,6 +39,7 @@ class ChatWebSocketHandlerTest {
   @Mock private LiveLocationService liveLocationService;
   @Mock private WebSocketAuthService webSocketAuthService;
   @Mock private ParticipantRepository participantRepository;
+  @Mock private UserStateService userStateService;
   @Mock private WebSocketSession session;
   @Mock private HandshakeInfo handshakeInfo;
   @Mock private WebSocketMessage incomingMessage;
@@ -56,7 +58,8 @@ class ChatWebSocketHandlerTest {
             messageService,
             liveLocationService,
             webSocketAuthService,
-            participantRepository);
+            participantRepository,
+            userStateService);
 
     when(session.getId()).thenReturn("ws-1");
     when(session.getHandshakeInfo()).thenReturn(handshakeInfo);
@@ -65,6 +68,8 @@ class ChatWebSocketHandlerTest {
     when(webSocketAuthService.extractUserContext(any(), any()))
         .thenReturn(Optional.of(new UserContext(11L, "USER", "", "user_11")));
     when(participantRepository.findByUserId(11L)).thenReturn(Flux.empty());
+    when(userStateService.markBackground(any())).thenReturn(Mono.empty());
+    when(userStateService.markOffline(any())).thenReturn(Mono.empty());
   }
 
   @Test

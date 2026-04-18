@@ -16,7 +16,7 @@ spring:
           location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:classpath:client.truststore.jks}
           password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD}
         
-        endpoint-identification-algorithm: ${KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM:}
+        endpoint-identification-algorithm: ""
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
