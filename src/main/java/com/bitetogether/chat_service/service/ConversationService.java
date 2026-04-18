@@ -1,5 +1,6 @@
 package com.bitetogether.chat_service.service;
 
+import com.bitetogether.chat_service.dto.conversation.AddParticipantsResponse;
 import com.bitetogether.chat_service.dto.conversation.ChatUserSnapshotDTO;
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
@@ -518,29 +519,66 @@ public class ConversationService {
                     response.getData()));
   }
 
-  /** Add a participant to a conversation. */
+  /** Add participants to a conversation with partial success semantics. */
   @Transactional
-  public Mono<ApiResponseDTO<ParticipantDTO>> addParticipant(String conversationId, Long userId) {
+  public Mono<ApiResponseDTO<AddParticipantsResponse>> addParticipant(
+      String conversationId, List<Long> userIds) {
+    Set<Long> requestedUserIds =
+        userIds == null
+            ? Set.of()
+            : userIds.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+    if (requestedUserIds.isEmpty()) {
+      return Mono.error(new AppException(ErrorCode.INVALID_DIRECT_CONVERSATION_USER_IDS));
+    }
+
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
         .flatMap(currentUserId -> validateAdminParticipant(conversationId, currentUserId))
-        .then(participantRepository.existsByConversationIdAndUserId(conversationId, userId))
+        .then(
+            participantRepository
+                .findByConversationId(conversationId)
+                .map(Participant::getUserId)
+                .collectList())
         .flatMap(
-            exists -> {
-              if (Boolean.TRUE.equals(exists)) {
-                return Mono.error(new AppException(ErrorCode.ALREADY_A_PARTICIPANT));
-              }
-              Participant participant = new Participant();
-              participant.setConversationId(conversationId);
-              participant.setUserId(userId);
-              participant.setRole(Role.MEMBER);
-              participant.setLastReadMessageSequence(0L);
-              return participantRepository.save(participant);
+            existingUserIdsList -> {
+              Set<Long> existingUserIds = new HashSet<>(existingUserIdsList);
+
+              List<Long> skippedUserIds =
+                  requestedUserIds.stream().filter(existingUserIds::contains).toList();
+
+              List<Participant> newParticipants =
+                  requestedUserIds.stream()
+                      .filter(userId -> !existingUserIds.contains(userId))
+                      .map(
+                          userId -> {
+                            Participant participant = new Participant();
+                            participant.setConversationId(conversationId);
+                            participant.setUserId(userId);
+                            participant.setRole(Role.MEMBER);
+                            participant.setLastReadMessageSequence(0L);
+                            return participant;
+                          })
+                      .toList();
+
+              Mono<List<ParticipantDTO>> addedParticipantsMono =
+                  Flux.fromIterable(newParticipants)
+                      .flatMap(participantRepository::save)
+                      .flatMap(this::enrichParticipantWithUserSnapshot)
+                      .collectList();
+
+              return addedParticipantsMono.map(
+                  addedParticipants ->
+                      AddParticipantsResponse.builder()
+                          .addedParticipants(addedParticipants)
+                          .skippedUserIds(skippedUserIds)
+                          .build());
             })
-        .flatMap(this::enrichParticipantWithUserSnapshot)
         .map(
-            dto ->
+            response ->
                 ApiResponseUtil.buildApiResponse(
-                    ApiResponseStatus.CREATED, "Participant added successfully", dto));
+                    ApiResponseStatus.CREATED, "Participants processed successfully", response));
   }
 
   /** Remove a participant from a conversation. */

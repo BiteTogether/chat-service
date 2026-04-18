@@ -1,5 +1,7 @@
 package com.bitetogether.chat_service.controller;
 
+import com.bitetogether.chat_service.dto.conversation.AddParticipantsRequest;
+import com.bitetogether.chat_service.dto.conversation.AddParticipantsResponse;
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
 import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
@@ -289,20 +291,21 @@ public class ConversationController {
 
   // ==================== PARTICIPANT MANAGEMENT ====================
 
-  @PostMapping("/{conversationId}/participants/{userId}")
+  @PostMapping("/{conversationId}/participants")
   @Operation(
-      summary = "Add a participant to a conversation",
+      summary = "Add participants to a conversation",
       description =
-          "Adds a new participant to the conversation. Only ADMIN participants can add new members.")
+          "Adds multiple participants to the conversation. Only ADMIN participants can add new members. "
+              + "Users already in the conversation are skipped.")
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "201",
-            description = "Participant added successfully",
-            content = @Content(schema = @Schema(implementation = ParticipantDTO.class))),
+            description = "Participants processed successfully",
+            content = @Content(schema = @Schema(implementation = AddParticipantsResponse.class))),
         @ApiResponse(
             responseCode = "400",
-            description = "User is already a participant",
+            description = "Invalid request",
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
         @ApiResponse(
             responseCode = "403",
@@ -317,15 +320,19 @@ public class ConversationController {
             description = "Internal server error",
             content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
       })
-  public Mono<ResponseEntity<ApiResponseDTO<ParticipantDTO>>> addParticipant(
+  public Mono<ResponseEntity<ApiResponseDTO<AddParticipantsResponse>>> addParticipant(
       @Parameter(description = "Conversation ID", required = true, example = "conv_abc123")
           @PathVariable
           String conversationId,
-      @Parameter(description = "User ID to add as participant", required = true, example = "123")
-          @PathVariable
-          Long userId) {
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description = "User IDs to add",
+              required = true,
+              content = @Content(schema = @Schema(implementation = AddParticipantsRequest.class)))
+          @Valid
+          @RequestBody
+          AddParticipantsRequest request) {
     return conversationService
-        .addParticipant(conversationId, userId)
+        .addParticipant(conversationId, request.getUserIds())
         .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
   }
 
