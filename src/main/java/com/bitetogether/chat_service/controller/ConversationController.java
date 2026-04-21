@@ -2,6 +2,7 @@ package com.bitetogether.chat_service.controller;
 
 import com.bitetogether.chat_service.dto.conversation.AddParticipantsRequest;
 import com.bitetogether.chat_service.dto.conversation.AddParticipantsResponse;
+import com.bitetogether.chat_service.dto.conversation.AvatarUploadResponse;
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
 import com.bitetogether.chat_service.dto.conversation.CreateConversationRequest;
@@ -27,7 +28,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -37,6 +40,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
@@ -287,6 +291,49 @@ public class ConversationController {
           @RequestBody
           UpdateConversationRequest request) {
     return conversationService.updateConversation(conversationId, request).map(ResponseEntity::ok);
+  }
+
+  @PostMapping(value = "/{conversationId}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @Operation(
+      summary = "Upload or update conversation avatar",
+      description =
+          "Uploads a new avatar for GROUP conversations only. Direct conversations use participant avatars. "
+              + "If an avatar already exists, it will be deleted and replaced. "
+              + "Any participant can upload avatars. Maximum file size is 5MB. "
+              + "Allowed formats: JPEG, PNG, GIF, WEBP.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Avatar uploaded successfully",
+            content = @Content(schema = @Schema(implementation = AvatarUploadResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description =
+                "Invalid request - wrong file type, too large, empty, or attempting to upload avatar for a DIRECT conversation",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "User is not a participant of the conversation",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Conversation not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
+      })
+  public Mono<ResponseEntity<ApiResponseDTO<AvatarUploadResponse>>> uploadConversationAvatar(
+      @Parameter(description = "Conversation ID", required = true, example = "conv_abc123")
+          @PathVariable
+          String conversationId,
+      @Parameter(description = "Avatar image file", required = true) @RequestPart("file")
+          FilePart file) {
+    return conversationService
+        .uploadConversationAvatar(conversationId, file)
+        .map(ResponseEntity::ok);
   }
 
   // ==================== PARTICIPANT MANAGEMENT ====================

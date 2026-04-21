@@ -11,7 +11,4 @@ public class UpdateConversationRequest {
   @Size(max = 100, message = "Name must be at most 100 characters")
   @Schema(description = "New conversation name", example = "Updated Team Name")
   private String name;
-
-  @Schema(description = "New avatar URL", example = "https://example.com/new-avatar.png")
-  private String avatarUrl;
 }

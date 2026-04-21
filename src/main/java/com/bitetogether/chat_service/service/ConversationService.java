@@ -1,6 +1,7 @@
 package com.bitetogether.chat_service.service;
 
 import com.bitetogether.chat_service.dto.conversation.AddParticipantsResponse;
+import com.bitetogether.chat_service.dto.conversation.AvatarUploadResponse;
 import com.bitetogether.chat_service.dto.conversation.ChatUserSnapshotDTO;
 import com.bitetogether.chat_service.dto.conversation.ConversationDTO;
 import com.bitetogether.chat_service.dto.conversation.ConversationPageResponse;
@@ -44,6 +45,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -65,6 +67,7 @@ public class ConversationService {
   MessageMapper messageMapper;
   CryptoService cryptoService;
   LiveLocationService liveLocationService;
+  FirebaseStorageService firebaseStorageService;
 
   /** Create a new conversation with participants. */
   @Transactional
@@ -495,6 +498,55 @@ public class ConversationService {
 
   // ==================== UPDATE ====================
 
+  /**
+   * Upload or update conversation avatar. Only for GROUP conversations. Any participant can upload.
+   */
+  @Transactional
+  public Mono<ApiResponseDTO<AvatarUploadResponse>> uploadConversationAvatar(
+      String conversationId, FilePart file) {
+    return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
+        .flatMap(currentUserId -> validateParticipant(conversationId, currentUserId))
+        .then(conversationRepository.findById(conversationId))
+        .switchIfEmpty(Mono.error(new AppException(ErrorCode.CONVERSATION_NOT_FOUND)))
+        .flatMap(
+            conversation -> {
+              // Only GROUP conversations can have custom avatars
+              if (conversation.getType() == ConversationType.DIRECT) {
+                return Mono.error(
+                    new AppException(ErrorCode.DIRECT_CONVERSATION_CANNOT_UPLOAD_AVATAR));
+              }
+
+              // Delete old avatar if exists
+              Mono<Void> deleteOldAvatarMono =
+                  conversation.getAvatarUrl() != null && !conversation.getAvatarUrl().isEmpty()
+                      ? firebaseStorageService
+                          .deleteFile(conversation.getAvatarUrl())
+                          .doOnNext(
+                              deleted ->
+                                  log.info(
+                                      "Old avatar deletion result for {}: {}",
+                                      conversationId,
+                                      deleted))
+                          .then()
+                      : Mono.empty();
+
+              // Upload new avatar
+              return deleteOldAvatarMono
+                  .then(firebaseStorageService.uploadConversationAvatar(file, conversationId))
+                  .flatMap(
+                      newAvatarUrl -> {
+                        conversation.setAvatarUrl(newAvatarUrl);
+                        return conversationRepository.save(conversation).thenReturn(newAvatarUrl);
+                      });
+            })
+        .map(
+            avatarUrl ->
+                ApiResponseUtil.buildApiResponse(
+                    ApiResponseStatus.SUCCESS,
+                    "Conversation avatar uploaded successfully",
+                    AvatarUploadResponse.builder().avatarUrl(avatarUrl).build()));
+  }
+
   /** Update a conversation (name, avatar). */
   @Transactional
   public Mono<ApiResponseDTO<ConversationDTO>> updateConversation(
@@ -667,12 +719,27 @@ public class ConversationService {
         .then(conversationRepository.findById(conversationId))
         .switchIfEmpty(Mono.error(new AppException(ErrorCode.CONVERSATION_NOT_FOUND)))
         .flatMap(
-            conversation ->
-                // Delete all related data
-                participantRepository
-                    .deleteByConversationId(conversationId)
-                    .then(messageRepository.deleteByConversationId(conversationId))
-                    .then(conversationRepository.delete(conversation)))
+            conversation -> {
+              // Delete avatar if exists
+              Mono<Void> deleteAvatarMono =
+                  conversation.getAvatarUrl() != null && !conversation.getAvatarUrl().isEmpty()
+                      ? firebaseStorageService
+                          .deleteFile(conversation.getAvatarUrl())
+                          .doOnNext(
+                              deleted ->
+                                  log.info(
+                                      "Avatar deletion result for conversation {}: {}",
+                                      conversationId,
+                                      deleted))
+                          .then()
+                      : Mono.empty();
+
+              // Delete all related data
+              return deleteAvatarMono
+                  .then(participantRepository.deleteByConversationId(conversationId))
+                  .then(messageRepository.deleteByConversationId(conversationId))
+                  .then(conversationRepository.delete(conversation));
+            })
         .then(
             Mono.fromCallable(
                 () ->
