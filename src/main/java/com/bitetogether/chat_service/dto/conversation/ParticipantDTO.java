@@ -3,7 +3,6 @@ package com.bitetogether.chat_service.dto.conversation;
 import com.bitetogether.chat_service.dto.base.BaseResponse;
 import com.bitetogether.chat_service.enums.conversation.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,5 +28,4 @@ public class ParticipantDTO extends BaseResponse {
 
   @Schema(description = "Last read message sequence number", example = "42")
   private Long lastReadMessageSequence;
-
 }

@@ -33,6 +33,9 @@ public enum ErrorCode implements BaseErrorCode {
       ApiResponseStatus.BAD_REQUEST, "Both user IDs are required and must be different"),
   GROUP_CONVERSATION_REQUIRES_NAME(
       ApiResponseStatus.BAD_REQUEST, "Group conversation requires a name"),
+  DIRECT_CONVERSATION_CANNOT_UPLOAD_AVATAR(
+      ApiResponseStatus.BAD_REQUEST,
+      "Cannot upload avatar for direct conversations. Direct conversations use participant avatars."),
 
   // Participant errors
   NOT_A_PARTICIPANT(ApiResponseStatus.FORBIDDEN, "You are not a participant in this conversation"),
@@ -69,6 +72,15 @@ public enum ErrorCode implements BaseErrorCode {
   USER_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "User not found"),
   USER_SERVICE_UNAUTHORIZED(ApiResponseStatus.UNAUTHORIZED, "Unauthorized access to user service"),
   USER_SERVICE_ERROR(ApiResponseStatus.INTERNAL_SERVER_ERROR, "User service error"),
+
+  // File errors
+  FILE_EMPTY(ApiResponseStatus.BAD_REQUEST, "File is empty or not provided"),
+  FILE_TOO_LARGE(ApiResponseStatus.BAD_REQUEST, "File size exceeds maximum limit of 5MB"),
+  INVALID_FILE_TYPE(
+      ApiResponseStatus.BAD_REQUEST,
+      "Invalid file type. Only JPEG, PNG, GIF, and WEBP are allowed"),
+  FILE_UPLOAD_ERROR(ApiResponseStatus.INTERNAL_SERVER_ERROR, "Error uploading file to storage"),
+  FILE_DELETE_ERROR(ApiResponseStatus.INTERNAL_SERVER_ERROR, "Error deleting file from storage"),
   ;
 
   ApiResponseDTO<Void> response;

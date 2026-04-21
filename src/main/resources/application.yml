@@ -16,3 +16,4 @@ spring:
       - kafka
       - redis
       - crypto
+      - firebase
