@@ -5,5 +5,10 @@ import com.bitetogether.chat_service.enums.message.MessageType;
 import com.bitetogether.chat_service.enums.websocket.WebSocketAction;
 
 public record SendMessageInbound(
-    String conversationId, WebSocketAction action, MessageType messageType, String content)
+    String conversationId,
+    WebSocketAction action,
+    MessageType messageType,
+    String content,
+    String postId,
+    String photoUrl)
     implements WsInboundEnvelope {}

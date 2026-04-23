@@ -12,4 +12,8 @@ public class MessageSendRequest {
   @NotNull private MessageType messageType;
 
   @NotBlank private String content;
+
+  private String postId;
+
+  private String photoUrl;
 }

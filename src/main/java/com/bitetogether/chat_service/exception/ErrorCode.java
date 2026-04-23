@@ -18,6 +18,7 @@ public enum ErrorCode implements BaseErrorCode {
       ApiResponseStatus.FORBIDDEN, "You are not authorized to update this message"),
   MESSAGE_DELETE_UNAUTHORIZED(
       ApiResponseStatus.FORBIDDEN, "You are not authorized to delete this message"),
+  INVALID_MESSAGE_POST_ID(ApiResponseStatus.BAD_REQUEST, "postId is required for POST_COMMENT"),
 
   // Conversation errors
   CONVERSATION_NOT_FOUND(ApiResponseStatus.NOT_FOUND, "Conversation not found"),

@@ -15,4 +15,7 @@ public enum MessageType {
 
   @Schema(description = "Emoji or reaction message")
   EMOJI,
+
+  @Schema(description = "Comment notification message for a post")
+  POST_COMMENT,
 }

@@ -7,6 +7,7 @@ import com.bitetogether.chat_service.dto.message.SendMessageInbound;
 import com.bitetogether.chat_service.dto.message.UpdateMessageRequest;
 import com.bitetogether.chat_service.enums.message.MessageCreatedEvent;
 import com.bitetogether.chat_service.enums.message.MessageDeletedEvent;
+import com.bitetogether.chat_service.enums.message.MessageType;
 import com.bitetogether.chat_service.enums.message.MessageUpdatedEvent;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.bitetogether.chat_service.exception.ErrorCode;
@@ -54,7 +55,9 @@ public class MessageService {
             request.getConversationId(),
             com.bitetogether.chat_service.enums.websocket.WebSocketAction.SEND,
             request.getMessageType(),
-            request.getContent());
+            request.getContent(),
+            request.getPostId(),
+            request.getPhotoUrl());
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
         .flatMap(senderId -> processIncoming(inbound, senderId));
   }
@@ -62,6 +65,7 @@ public class MessageService {
   public Mono<ApiResponseDTO<ChatMessageDTO>> processIncoming(
       SendMessageInbound inbound, Long senderId) {
     return validateMember(inbound.conversationId(), senderId)
+        .then(validateMessageMetadata(inbound))
         .then(sequenceService.nextSeq(inbound.conversationId()))
         .flatMap(seq -> buildMessage(inbound, senderId, seq))
         .flatMap(messageRepository::save)
@@ -328,9 +332,19 @@ public class MessageService {
                     .sequence(seq)
                     .senderId(senderId)
                     .type(inbound.messageType())
+                    .postId(inbound.postId())
+                    .photoUrl(inbound.photoUrl())
                     .ciphertext(encrypted.ciphertext())
                     .iv(encrypted.iv())
                     .authTag(encrypted.authTag())
                     .build());
+  }
+
+  private Mono<Void> validateMessageMetadata(SendMessageInbound inbound) {
+    if (inbound.messageType() == MessageType.POST_COMMENT
+        && (inbound.postId() == null || inbound.postId().isBlank())) {
+      return Mono.error(new AppException(ErrorCode.INVALID_MESSAGE_POST_ID));
+    }
+    return Mono.empty();
   }
 }
