@@ -165,8 +165,6 @@ public class VoteService {
                   option.setPlaceId(input.getPlaceId());
                   option.setName(input.getName());
                   option.setAddress(input.getAddress());
-                  option.setLat(input.getLat());
-                  option.setLng(input.getLng());
                   option.setLabel(input.getName());
                   return option;
                 })

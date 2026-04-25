@@ -23,9 +23,5 @@ public class CreateVoteSessionRequest {
 
     @Size(max = 300)
     private String address;
-
-    private Double lat;
-
-    private Double lng;
   }
 }

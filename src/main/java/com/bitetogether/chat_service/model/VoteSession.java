@@ -53,11 +53,5 @@ public class VoteSession extends BaseModel {
 
     @Field("address")
     private String address;
-
-    @Field("lat")
-    private Double lat;
-
-    @Field("lng")
-    private Double lng;
   }
 }
