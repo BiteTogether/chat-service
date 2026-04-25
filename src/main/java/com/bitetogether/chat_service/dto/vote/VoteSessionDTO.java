@@ -22,7 +22,5 @@ public record VoteSessionDTO(
       String placeId,
       String name,
       String address,
-      Double lat,
-      Double lng,
       String label) {}
 }
