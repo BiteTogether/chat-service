@@ -19,4 +19,10 @@ public class ChatInboundMessage {
 
   /** Message content (plaintext - server will encrypt) - only required for SEND action */
   private String content;
+
+  /** Post ID for POST_COMMENT message type */
+  private String postId;
+
+  /** Optional photo URL preview for message */
+  private String photoUrl;
 }

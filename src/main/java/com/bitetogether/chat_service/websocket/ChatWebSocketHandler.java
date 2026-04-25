@@ -3,7 +3,6 @@ package com.bitetogether.chat_service.websocket;
 import com.bitetogether.chat_service.configuration.websocket.WebSocketAuthService;
 import com.bitetogether.chat_service.dto.location.LocationUpdateInbound;
 import com.bitetogether.chat_service.dto.message.SendMessageInbound;
-import com.bitetogether.chat_service.dto.websocket.LegacyChatInboundMessage;
 import com.bitetogether.chat_service.dto.websocket.WsEnvelopeDTO;
 import com.bitetogether.chat_service.enums.websocket.WebSocketAction;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
@@ -192,24 +191,19 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
   private SendMessageInbound toSendMessageInbound(JsonNode raw, WsEnvelopeDTO envelope) {
     SendMessageInbound typed = mapper.convertValue(raw, SendMessageInbound.class);
-    if (typed.content() != null || typed.messageType() != null) {
-      return typed;
-    }
-
-    LegacyChatInboundMessage legacy = mapper.convertValue(raw, LegacyChatInboundMessage.class);
     return new SendMessageInbound(
-        envelope.conversationId(), envelope.action(), legacy.messageType(), legacy.content());
+        envelope.conversationId(),
+        envelope.action(),
+        typed.messageType(),
+        typed.content(),
+        typed.postId(),
+        typed.photoUrl());
   }
 
   private LocationUpdateInbound toLocationUpdateInbound(JsonNode raw, WsEnvelopeDTO envelope) {
     LocationUpdateInbound typed = mapper.convertValue(raw, LocationUpdateInbound.class);
-    if (typed.location() != null || typed.isSharing() != null) {
-      return typed;
-    }
-
-    LegacyChatInboundMessage legacy = mapper.convertValue(raw, LegacyChatInboundMessage.class);
     return new LocationUpdateInbound(
-        envelope.conversationId(), envelope.action(), legacy.location(), legacy.isSharing());
+        envelope.conversationId(), envelope.action(), typed.location(), typed.isSharing());
   }
 
   private Mono<Void> handleTypingIndicator(WsEnvelopeDTO msg) {

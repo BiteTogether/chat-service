@@ -19,6 +19,10 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class RealtimeSubscriber {
 
+  private static final String EVENT_MESSAGE_CREATED = "MESSAGE_CREATED";
+  private static final String EVENT_MESSAGE_UPDATED = "MESSAGE_UPDATED";
+  private static final String EVENT_MESSAGE_DELETED = "MESSAGE_DELETED";
+
   private final DomainEventPublisher publisher;
   private final RoomSessionRegistry registry;
   private final ObjectMapper mapper;
@@ -42,7 +46,9 @@ public class RealtimeSubscriber {
               WebSocketOutboundMessage outbound =
                   WebSocketOutboundMessage.builder()
                       .action(WebSocketAction.SEND)
+                      .eventType(EVENT_MESSAGE_CREATED)
                       .conversationId(event.conversationId())
+                      .messageId(event.message().getId())
                       .message(event.message())
                       .build();
               return broadcastToConversation(event.conversationId(), outbound);
@@ -62,8 +68,9 @@ public class RealtimeSubscriber {
               WebSocketOutboundMessage outbound =
                   WebSocketOutboundMessage.builder()
                       .action(WebSocketAction.SEND)
-                      .eventType("MESSAGE_UPDATED")
+                      .eventType(EVENT_MESSAGE_UPDATED)
                       .conversationId(event.conversationId())
+                      .messageId(event.message().getId())
                       .message(event.message())
                       .build();
               return broadcastToConversation(event.conversationId(), outbound);
@@ -83,7 +90,7 @@ public class RealtimeSubscriber {
               WebSocketOutboundMessage outbound =
                   WebSocketOutboundMessage.builder()
                       .action(WebSocketAction.SEND)
-                      .eventType("MESSAGE_DELETED")
+                      .eventType(EVENT_MESSAGE_DELETED)
                       .conversationId(event.conversationId())
                       .messageId(event.messageId())
                       .build();

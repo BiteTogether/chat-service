@@ -40,6 +40,10 @@ build/
 src/main/resources/client.keystore.p12
 src/main/resources/client.truststore.jks
 
+src/main/resources/config/*-firebase-adminsdk-*.json
+*firebase-service-account.json
+firebase-adminsdk-*.json
 AGENTS.md
 .gitnexus
 .claude
+undefined

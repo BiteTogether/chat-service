@@ -34,4 +34,10 @@ public class ChatMessageDTO extends BaseResponse {
 
   @Schema(description = "Decrypted message content", example = "Hello, world!")
   private String content;
+
+  @Schema(description = "Post ID associated with comment message", example = "post_abc123")
+  private String postId;
+
+  @Schema(description = "Photo URL preview associated with comment message")
+  private String photoUrl;
 }

@@ -30,6 +30,12 @@ public class Message extends BaseModel {
   @Field("type")
   private MessageType type;
 
+  @Field("post_id")
+  private String postId;
+
+  @Field("photo_url")
+  private String photoUrl;
+
   // AES-GCM encrypted content
   @Field("cipher_text")
   private byte[] ciphertext;
