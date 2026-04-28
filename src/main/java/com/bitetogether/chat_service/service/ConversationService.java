@@ -353,7 +353,7 @@ public class ConversationService {
     }
 
     return conversationFlux
-        .flatMap(
+        .flatMapSequential(
             conversation ->
                 buildConversationDTO(conversation.getId(), userId)
                     .map(
