@@ -24,6 +24,7 @@ import com.bitetogether.common.exception.AppException;
 import com.bitetogether.common.util.ApiResponseUtil;
 import com.bitetogether.common.util.ReactiveUserContextUtils;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -84,12 +85,16 @@ public class MessageService {
 
   /** Update the conversation's lastMessageTime and lastMessageId when a new message is sent. */
   private Mono<Void> updateConversationLastMessageTime(Message message) {
+    LocalDateTime lastMessageTime =
+        message.getCreatedAt() == null
+            ? LocalDateTime.now(ZoneOffset.UTC)
+            : LocalDateTime.ofInstant(message.getCreatedAt(), ZoneOffset.UTC);
     return conversationRepository
         .findById(message.getConversationId())
         .flatMap(
             conversation -> {
               conversation.setLastMessageId(message.getId());
-              conversation.setLastMessageTime(LocalDateTime.now());
+              conversation.setLastMessageTime(lastMessageTime);
               return conversationRepository.save(conversation);
             })
         .then();
