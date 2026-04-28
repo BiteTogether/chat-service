@@ -132,6 +132,44 @@ public class VoteService {
                                 dto)));
   }
 
+  public Mono<ApiResponseDTO<VoteSessionDTO>> updateVoteSessionName(
+      String voteSessionId, String name) {
+    return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
+        .flatMap(
+            userId ->
+                voteSessionRepository
+                    .findById(voteSessionId)
+                    .switchIfEmpty(Mono.error(new AppException(ErrorCode.VOTE_SESSION_NOT_FOUND)))
+                    .flatMap(
+                        session ->
+                            validateParticipant(session.getConversationId(), userId)
+                                .then(
+                                    userId.equals(session.getCreatorId())
+                                        ? Mono.empty()
+                                        : Mono.error(
+                                            new AppException(
+                                                ErrorCode.CONVERSATION_UPDATE_UNAUTHORIZED)))
+                                .thenReturn(session))
+                    .map(
+                        session -> {
+                          session.setName(name);
+                          return session;
+                        })
+                    .flatMap(voteSessionRepository::save)
+                    .map(voteMapper::toDto)
+                    .doOnNext(
+                        dto ->
+                            domainEventPublisher.publishVoteSessionEvent(
+                                new VoteSessionRealtimeEvent(
+                                    dto.conversationId(), "VOTE_UPDATED", dto)))
+                    .map(
+                        dto ->
+                            ApiResponseUtil.buildApiResponse(
+                                ApiResponseStatus.SUCCESS,
+                                "Vote session updated successfully",
+                                dto)));
+  }
+
   public Mono<ApiResponseDTO<List<VoteSessionDTO>>> getConversationVoteSessions(
       String conversationId) {
     return ReactiveUserContextUtils.getUserIdOrError(USER_ID_NOT_FOUND_MSG)
@@ -155,6 +193,7 @@ public class VoteService {
     VoteSession session = new VoteSession();
     session.setConversationId(request.getConversationId());
     session.setCreatorId(userId);
+    session.setName(request.getName());
     session.setStatus(VoteSessionStatus.OPEN);
     session.setOptions(
         request.getOptions().stream()
