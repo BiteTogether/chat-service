@@ -22,6 +22,9 @@ public class VoteSession extends BaseModel {
   @Field("creator_id")
   private Long creatorId;
 
+  @Field("name")
+  private String name;
+
   @Field("status")
   private VoteSessionStatus status;
 

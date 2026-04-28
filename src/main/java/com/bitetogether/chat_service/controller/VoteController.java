@@ -2,6 +2,7 @@ package com.bitetogether.chat_service.controller;
 
 import com.bitetogether.chat_service.dto.vote.CastVoteRequest;
 import com.bitetogether.chat_service.dto.vote.CreateVoteSessionRequest;
+import com.bitetogether.chat_service.dto.vote.UpdateVoteSessionRequest;
 import com.bitetogether.chat_service.dto.vote.VoteSessionDTO;
 import com.bitetogether.chat_service.service.VoteService;
 import com.bitetogether.common.dto.ApiResponseDTO;
@@ -22,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -167,5 +169,38 @@ public class VoteController {
           @PathVariable
           String conversationId) {
     return voteService.getConversationVoteSessions(conversationId).map(ResponseEntity::ok);
+  }
+
+  @PatchMapping("/{voteSessionId}")
+  @Operation(summary = "Update vote session", description = "Updates vote session name.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Vote session updated successfully",
+            content = @Content(schema = @Schema(implementation = VoteSessionDTO.class))),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Only vote creator can update vote session",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Vote session not found",
+            content = @Content(schema = @Schema(implementation = ApiResponseDTO.class)))
+      })
+  public Mono<ResponseEntity<ApiResponseDTO<VoteSessionDTO>>> updateVoteSession(
+      @Parameter(description = "Vote session ID", required = true, example = "vote_abc123")
+          @PathVariable
+          String voteSessionId,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description = "Vote session update request",
+              required = true,
+              content = @Content(schema = @Schema(implementation = UpdateVoteSessionRequest.class)))
+          @Valid
+          @RequestBody
+          UpdateVoteSessionRequest request) {
+    return voteService
+        .updateVoteSessionName(voteSessionId, request.getName())
+        .map(ResponseEntity::ok);
   }
 }

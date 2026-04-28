@@ -11,6 +11,7 @@ public record VoteSessionDTO(
     String id,
     String conversationId,
     Long createdBy,
+    String name,
     VoteSessionStatus status,
     List<VoteOptionDTO> options,
     Map<Long, String> votes,

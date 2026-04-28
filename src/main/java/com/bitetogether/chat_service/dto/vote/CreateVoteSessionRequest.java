@@ -11,6 +11,10 @@ import lombok.Data;
 public class CreateVoteSessionRequest {
   @NotNull private String conversationId;
 
+  @NotBlank
+  @Size(max = 120)
+  private String name;
+
   @NotEmpty private List<VoteOptionRequest> options;
 
   @Data
