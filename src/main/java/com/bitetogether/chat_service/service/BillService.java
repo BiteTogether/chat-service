@@ -318,8 +318,8 @@ public class BillService {
 
     Long targetUserId = explicitUserId != null ? explicitUserId : requesterId;
     if (explicitUserId != null
-            && !requesterId.equals(session.getCreatorId())
-            && !requesterId.equals(explicitUserId)) {
+        && !requesterId.equals(session.getCreatorId())
+        && !requesterId.equals(explicitUserId)) {
       return Mono.error(new AppException(ErrorCode.BILL_PAYMENT_UNAUTHORIZED));
     }
 

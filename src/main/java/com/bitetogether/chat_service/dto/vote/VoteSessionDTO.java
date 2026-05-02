@@ -19,9 +19,5 @@ public record VoteSessionDTO(
     Instant closedAt) {
   @Builder
   public record VoteOptionDTO(
-      String id,
-      String placeId,
-      String name,
-      String address,
-      String label) {}
+      String id, String placeId, String name, String address, String label) {}
 }

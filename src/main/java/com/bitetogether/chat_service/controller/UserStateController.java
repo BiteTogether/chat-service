@@ -5,7 +5,7 @@ import static com.bitetogether.chat_service.util.Constants.ApiPaths.USER_STATE;
 import com.bitetogether.chat_service.dto.websocket.UpdateUserStateRequest;
 import com.bitetogether.chat_service.dto.websocket.UserStateResponse;
 import com.bitetogether.chat_service.service.UserStateService;
-import com.bitetogether.common.dto.UserContext;
+import com.bitetogether.common.util.ReactiveUserContextUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,13 +51,13 @@ public class UserStateController {
         @ApiResponse(responseCode = "401", description = "Unauthorized")
       })
   public Mono<UserStateResponse> updateUserState(
-      @AuthenticationPrincipal UserContext userContext,
       @Valid @RequestBody UpdateUserStateRequest request) {
 
-    Long userId = userContext.getUserId();
-
-    return userStateService
-        .setUserState(userId, request.state())
-        .then(Mono.just(new UserStateResponse(userId, request.state())));
+    return ReactiveUserContextUtils.getUserIdOrError("User ID not found in context")
+        .flatMap(
+            userId ->
+                userStateService
+                    .setUserState(userId, request.state())
+                    .then(Mono.just(new UserStateResponse(userId, request.state()))));
   }
 }
