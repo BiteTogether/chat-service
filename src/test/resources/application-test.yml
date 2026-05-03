@@ -1,0 +1,66 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: chat-service-test
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  data:
+    mongodb:
+      database: test
+    redis:
+      host: localhost
+      port: 6370
+      ssl:
+        enabled: false
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+      user-state:
+        ttl: 60s
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers:localhost:9092}
+    properties:
+      security-protocol: PLAINTEXT
+    consumer:
+      group-id: chat-service-test-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+    topic:
+      user-events: user-events-test
+      conversation-events: conversation-events-test
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+de:
+  flapdoodle:
+    mongodb:
+      embedded:
+        version: 7.0.0
+
+chat:
+  crypto:
+    key: jCs2p5QKBPaDFxIH1U7bKor/C83//9+O1E39cXKz7Hg=
+    algorithm: AES
+    transformation: AES/GCM/NoPadding
+
+app:
+  security:
+    permit-paths: /actuator/**,/swagger-ui/**,/v3/api-docs/**,/api/**
+    allowed-origins: "*"
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: false
+
+firebase:
+  credentials-path: config/firebase-service-account.json
+  storage-bucket: test-bucket.firebasestorage.app
+  base-url: https://firebasestorage.googleapis.com/v0/b/test-bucket.firebasestorage.app/o
