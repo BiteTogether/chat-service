@@ -99,6 +99,19 @@
         </dependency>
 
         <dependency>
+            <groupId>de.flapdoodle.embed</groupId>
+            <artifactId>de.flapdoodle.embed.mongo.spring30x</artifactId>
+            <version>4.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.codemonstur</groupId>
+            <artifactId>embedded-redis</artifactId>
+            <version>1.4.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.github.bitetogether</groupId>
             <artifactId>common-service</artifactId>
             <version>${common-service.version}</version>

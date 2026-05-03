@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.ReactiveSetOperations;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
@@ -52,7 +53,9 @@ class LiveLocationServiceTest {
             redisTemplate,
             objectMapper,
             domainEventPublisher);
-    when(chatUserSnapshotRepository.findById(any())).thenReturn(Mono.empty());
+    Mockito.lenient()
+        .when(chatUserSnapshotRepository.findById(any(Long.class)))
+        .thenReturn(Mono.empty());
   }
 
   @Test
@@ -129,17 +132,7 @@ class LiveLocationServiceTest {
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     LiveLocationSnapshot snapshot =
         new LiveLocationSnapshot(
-            "conv_1",
-            11L,
-            null,
-            null,
-            10.77,
-            106.69,
-            null,
-            null,
-            null,
-            Instant.now(),
-            true);
+            "conv_1", 11L, null, null, 10.77, 106.69, null, null, null, Instant.now(), true);
     String json = objectMapper.writeValueAsString(snapshot);
 
     when(participantRepository.existsByConversationIdAndUserId("conv_1", 99L))
