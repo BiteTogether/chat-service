@@ -196,7 +196,7 @@ public class LiveLocationService {
                 new LiveLocationSnapshot(
                     conversationId,
                     userId,
-                    snapshot.getUsername(),
+                    snapshot.getFullName(),
                     snapshot.getAvatar(),
                     payload != null ? payload.lat() : null,
                     payload != null ? payload.lng() : null,
