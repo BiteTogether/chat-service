@@ -5,6 +5,8 @@ import com.bitetogether.chat_service.dto.location.LocationPayload;
 import com.bitetogether.chat_service.enums.location.LocationUpdatedEvent;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
 import com.bitetogether.chat_service.exception.ErrorCode;
+import com.bitetogether.chat_service.model.ChatUserSnapshot;
+import com.bitetogether.chat_service.repository.ChatUserSnapshotRepository;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
 import com.bitetogether.common.exception.AppException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,6 +30,7 @@ public class LiveLocationService {
   static final Duration THROTTLE_WINDOW = Duration.ofSeconds(2);
 
   ParticipantRepository participantRepository;
+  ChatUserSnapshotRepository chatUserSnapshotRepository;
   ReactiveStringRedisTemplate redisTemplate;
   ObjectMapper objectMapper;
   DomainEventPublisher domainEventPublisher;
@@ -67,42 +70,32 @@ public class LiveLocationService {
                 return Mono.empty();
               }
 
-              LiveLocationSnapshot snapshot =
-                  new LiveLocationSnapshot(
-                      conversationId,
-                      userId,
-                      payload.lat(),
-                      payload.lng(),
-                      payload.accuracy(),
-                      payload.heading(),
-                      payload.speed(),
-                      payload.timestamp() != null ? payload.timestamp() : Instant.now(),
-                      true);
-
-              return persistSnapshot(snapshot)
-                  .doOnSuccess(
-                      unused ->
-                          domainEventPublisher.publishLocationUpdated(
-                              new LocationUpdatedEvent(conversationId, snapshot)));
+              return buildSnapshot(conversationId, userId, payload, true)
+                  .flatMap(
+                      snapshot ->
+                          persistSnapshot(snapshot)
+                              .doOnSuccess(
+                                  unused ->
+                                      domainEventPublisher.publishLocationUpdated(
+                                          new LocationUpdatedEvent(conversationId, snapshot))));
             });
   }
 
   private Mono<Void> stopSharing(String conversationId, Long userId) {
-    LiveLocationSnapshot snapshot =
-        new LiveLocationSnapshot(
-            conversationId, userId, null, null, null, null, null, Instant.now(), false);
-
-    return redisTemplate
-        .delete(locationKey(conversationId, userId))
-        .then(
-            redisTemplate
-                .opsForSet()
-                .remove(locationUsersKey(conversationId), String.valueOf(userId)))
-        .then(
-            Mono.fromRunnable(
-                () ->
-                    domainEventPublisher.publishLocationUpdated(
-                        new LocationUpdatedEvent(conversationId, snapshot))));
+    return buildSnapshot(conversationId, userId, null, false)
+        .flatMap(
+            snapshot ->
+                redisTemplate
+                    .delete(locationKey(conversationId, userId))
+                    .then(
+                        redisTemplate
+                            .opsForSet()
+                            .remove(locationUsersKey(conversationId), String.valueOf(userId)))
+                    .then(
+                        Mono.fromRunnable(
+                            () ->
+                                domainEventPublisher.publishLocationUpdated(
+                                    new LocationUpdatedEvent(conversationId, snapshot)))));
   }
 
   private Mono<Void> persistSnapshot(LiveLocationSnapshot snapshot) {
@@ -189,6 +182,29 @@ public class LiveLocationService {
 
   private static String throttleKey(String conversationId, Long userId) {
     return "chat:location:throttle:" + conversationId + ":" + userId;
+  }
+
+  private Mono<LiveLocationSnapshot> buildSnapshot(
+      String conversationId, Long userId, LocationPayload payload, boolean sharing) {
+    Instant timestamp =
+        payload != null && payload.timestamp() != null ? payload.timestamp() : Instant.now();
+    return chatUserSnapshotRepository
+        .findById(userId)
+        .defaultIfEmpty(new ChatUserSnapshot())
+        .map(
+            snapshot ->
+                new LiveLocationSnapshot(
+                    conversationId,
+                    userId,
+                    snapshot.getUsername(),
+                    snapshot.getAvatar(),
+                    payload != null ? payload.lat() : null,
+                    payload != null ? payload.lng() : null,
+                    payload != null ? payload.accuracy() : null,
+                    payload != null ? payload.heading() : null,
+                    payload != null ? payload.speed() : null,
+                    timestamp,
+                    sharing));
   }
 
   private static boolean isLatitudeValid(Double lat) {
