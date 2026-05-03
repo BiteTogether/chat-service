@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.bitetogether.chat_service.dto.location.LiveLocationSnapshot;
 import com.bitetogether.chat_service.dto.location.LocationPayload;
 import com.bitetogether.chat_service.event.DomainEventPublisher;
+import com.bitetogether.chat_service.repository.ChatUserSnapshotRepository;
 import com.bitetogether.chat_service.repository.ParticipantRepository;
 import com.bitetogether.common.exception.AppException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +34,7 @@ import reactor.test.StepVerifier;
 class LiveLocationServiceTest {
 
   @Mock private ParticipantRepository participantRepository;
+  @Mock private ChatUserSnapshotRepository chatUserSnapshotRepository;
   @Mock private ReactiveStringRedisTemplate redisTemplate;
   @Mock private ReactiveValueOperations<String, String> valueOperations;
   @Mock private ReactiveSetOperations<String, String> setOperations;
@@ -45,7 +47,12 @@ class LiveLocationServiceTest {
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     liveLocationService =
         new LiveLocationService(
-            participantRepository, redisTemplate, objectMapper, domainEventPublisher);
+            participantRepository,
+            chatUserSnapshotRepository,
+            redisTemplate,
+            objectMapper,
+            domainEventPublisher);
+    when(chatUserSnapshotRepository.findById(any())).thenReturn(Mono.empty());
   }
 
   @Test
@@ -122,7 +129,17 @@ class LiveLocationServiceTest {
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     LiveLocationSnapshot snapshot =
         new LiveLocationSnapshot(
-            "conv_1", 11L, 10.77, 106.69, null, null, null, Instant.now(), true);
+            "conv_1",
+            11L,
+            null,
+            null,
+            10.77,
+            106.69,
+            null,
+            null,
+            null,
+            Instant.now(),
+            true);
     String json = objectMapper.writeValueAsString(snapshot);
 
     when(participantRepository.existsByConversationIdAndUserId("conv_1", 99L))
