@@ -17,3 +17,12 @@ spring:
       - redis
       - crypto
       - firebase
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      access: read_only
