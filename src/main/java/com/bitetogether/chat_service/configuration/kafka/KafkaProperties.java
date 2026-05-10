@@ -22,6 +22,7 @@ public class KafkaProperties {
   public static class Topic {
     private String userEvents;
     private String conversationEvents;
+    private String chatNotificationEvents;
   }
 
   @Data

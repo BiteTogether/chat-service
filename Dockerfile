@@ -12,10 +12,14 @@ COPY target/chat-service-${VERSION}.jar app.jar
 COPY src/main/resources/client.keystore.p12 /app/certs/client.keystore.p12
 COPY src/main/resources/client.truststore.jks /app/certs/client.truststore.jks
 
+# Copy Firebase credentials
+COPY src/main/resources/config/firebase-service-account.json /app/config/firebase-service-account.json
+
 # Create directories and set permissions
 RUN mkdir -p /app/config /app/certs && \
     chown -R spring:spring /app && \
-    chmod 600 /app/certs/client.keystore.p12 /app/certs/client.truststore.jks
+    chmod 600 /app/certs/client.keystore.p12 /app/certs/client.truststore.jks && \
+    chmod 600 /app/config/firebase-service-account.json
 
 USER spring
 

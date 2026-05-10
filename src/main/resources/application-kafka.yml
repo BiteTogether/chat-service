@@ -33,3 +33,4 @@ spring:
     topic:
       user-events: ${USER_EVENTS_TOPIC:user-events}
       conversation-events: ${CONVERSATION_EVENTS_TOPIC:conversation-events}
+      chat-notification-events: ${CHAT_NOTIFICATION_EVENTS_TOPIC:chat-notification-events}
